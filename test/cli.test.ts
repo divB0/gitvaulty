@@ -22,7 +22,7 @@ describe("GitVaulty CLI", () => {
       "render",
       "check",
     ]);
-    expect(command("key")?.commands.map((item) => item.name())).toEqual(["generate", "import"]);
+    expect(command("key")?.commands.map((item) => item.name())).toEqual(["create", "public", "backup", "restore"]);
     expect(command("user")?.commands.map((item) => item.name())).toEqual(["add", "list", "remove"]);
   });
 

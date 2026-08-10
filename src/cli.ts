@@ -3,7 +3,7 @@ import { checkbox, confirm, input, password, select } from "@inquirer/prompts";
 import { Command } from "commander";
 import { executeChecked } from "./process.js";
 import { findRepository } from "./repository.js";
-import { currentRecipient, currentRecipients, generateKey, importKey, readIdentity } from "./key.js";
+import { createIdentity, currentRecipient, identityFile, readIdentity, restoreIdentity } from "./key.js";
 import { addUser, createVault, edit, initialize, removeUser, runWithVault } from "./operations.js";
 import { normalizeUsername, parseRecipient } from "./recipient.js";
 import { checkVault, renderVault } from "./templates.js";
@@ -29,18 +29,20 @@ export function formatUsers(users: VaultUser[]): string {
   return `${allRows.map((row) => `${row[0]!.padEnd(widths[0]!)}  ${row[1]!.padEnd(widths[1]!)}  ${row[2]!}`).join("\n")}\n`;
 }
 
-async function ensureLocalKey(repo: Awaited<ReturnType<typeof findRepository>>): Promise<string> {
-  try { await readIdentity(repo); return currentRecipient(repo); }
-  catch {
-    const method = await select({ message: "Set up your repository key", choices: [{ name: "Generate a new key", value: "generate" }, { name: "Import an existing key", value: "import" }] });
-    if (method === "generate") {
-      const result = await generateKey(repo);
-      process.stdout.write(`\nRecovery key (shown once — store it securely):\n${result.identity}\n\n`);
-      return result.recipient;
-    }
-    const result = await importKey(repo, await password({ message: "Paste your age private key", mask: "*" }));
-    return result.recipient;
+async function hasIdentity(): Promise<boolean> {
+  try { await readIdentity(); return true; }
+  catch (error) {
+    if ((error as Error).message.startsWith("No GitVaulty key found")) return false;
+    throw error;
   }
+}
+
+async function ensureCliIdentity(): Promise<string> {
+  if (await hasIdentity()) return currentRecipient();
+  if (!await confirm({ message: "No GitVaulty key found. Create one now?", default: true })) throw new Error("A GitVaulty key is required.");
+  const result = await createIdentity();
+  process.stdout.write(`Created global key at ${identityFile()}.\nPublic recipient: ${result.recipient}\nBack it up with \`gitvaulty key backup\`.\n`);
+  return result.recipient;
 }
 
 export function createProgram(): Command {
@@ -48,26 +50,43 @@ export function createProgram(): Command {
 
   program.command("init").description("Initialize GitVaulty in this repository").action(async () => {
     const repo = await findRepository();
-    const recipient = await ensureLocalKey(repo);
+    const recipient = await ensureCliIdentity();
     const username = await input({ message: "Your username", default: await localUsername(repo.root), validate: (value) => { try { normalizeUsername(value); return true; } catch (error) { return (error as Error).message; } } });
     await initialize(repo, { username: normalizeUsername(username), recipient });
     process.stdout.write("GitVaulty initialized.\n");
   });
 
   const vault = program.command("vault").description("Manage encrypted vaults");
-  vault.command("create <name>").description("Create an encrypted vault").action(async (name: string) => { const repo = await findRepository(); await createVault(repo, name); process.stdout.write(`Created vault ${name}.\n`); });
-  vault.command("edit <name>").description("Edit an encrypted vault").action(async (name: string) => edit(await findRepository(), name));
-  vault.command("render <name>").description("Render a vault's templates").action(async (name: string) => { const repo = await findRepository(); const files = await renderVault(repo, name); process.stdout.write(`Rendered ${files.length} file${files.length === 1 ? "" : "s"}.\n`); });
-  vault.command("check <name>").description("Check a vault's rendered files").action(async (name: string) => { const stale = await checkVault(await findRepository(), name); if (stale.length) { process.stderr.write(`Missing or stale:\n${stale.map((file) => `  ${file}`).join("\n")}\n`); process.exitCode = 1; } else process.stdout.write("Rendered files are current.\n"); });
+  vault.command("create <name>").description("Create an encrypted vault").action(async (name: string) => { await ensureCliIdentity(); const repo = await findRepository(); await createVault(repo, name); process.stdout.write(`Created vault ${name}.\n`); });
+  vault.command("edit <name>").description("Edit an encrypted vault").action(async (name: string) => { await ensureCliIdentity(); await edit(await findRepository(), name); });
+  vault.command("render <name>").description("Render a vault's templates").action(async (name: string) => { await ensureCliIdentity(); const repo = await findRepository(); const files = await renderVault(repo, name); process.stdout.write(`Rendered ${files.length} file${files.length === 1 ? "" : "s"}.\n`); });
+  vault.command("check <name>").description("Check a vault's rendered files").action(async (name: string) => { await ensureCliIdentity(); const stale = await checkVault(await findRepository(), name); if (stale.length) { process.stderr.write(`Missing or stale:\n${stale.map((file) => `  ${file}`).join("\n")}\n`); process.exitCode = 1; } else process.stdout.write("Rendered files are current.\n"); });
 
-  program.command("run <name> [command...]").description("Run a command with a vault's environment").allowUnknownOption(true).passThroughOptions().action(async (name: string, command: string[]) => { process.exitCode = await runWithVault(await findRepository(), name, command); });
+  program.command("run <name> [command...]").description("Run a command with a vault's environment").allowUnknownOption(true).passThroughOptions().action(async (name: string, command: string[]) => { await ensureCliIdentity(); process.exitCode = await runWithVault(await findRepository(), name, command); });
 
-  const key = program.command("key").description("Manage this repository's age key");
-  key.command("generate").description("Generate a repository age key").action(async () => { const result = await generateKey(await findRepository()); process.stdout.write(`Public recipient:\n${result.recipient}\n\nRecovery key (shown once — store it securely):\n${result.identity}\n`); });
-  key.command("import").description("Import a repository age key").action(async () => { const repo = await findRepository(); const result = await importKey(repo, await password({ message: "Paste your age private key", mask: "*" })); process.stdout.write(`Imported key for ${result.recipient}.\n`); });
+  const key = program.command("key").description("Manage your global age key");
+  key.command("create").description("Create a global age key").action(async () => {
+    const result = await createIdentity();
+    process.stdout.write(`Created global key at ${identityFile()}.\nPublic recipient: ${result.recipient}\nBack it up with \`gitvaulty key backup\`.\n`);
+  });
+  key.command("public").description("Print the public age recipient").action(async () => {
+    process.stdout.write(`${await ensureCliIdentity()}\n`);
+  });
+  key.command("backup").description("Print the private key for backup").action(async () => {
+    await ensureCliIdentity();
+    if (!await confirm({ message: "Print your private GitVaulty key? Keep it secret.", default: false })) return;
+    process.stdout.write(`${await readIdentity()}\n`);
+  });
+  key.command("restore").description("Restore a private key backup").action(async () => {
+    const replace = await hasIdentity();
+    if (replace && !await confirm({ message: "Replace the existing global GitVaulty key?", default: false })) return;
+    const result = await restoreIdentity(await password({ message: "Paste your AGE-SECRET-KEY backup", mask: "*" }), identityFile(), replace);
+    process.stdout.write(`Restored global key for ${result.recipient}.\n`);
+  });
 
   const user = program.command("user").description("Manage vault access");
   user.command("add").description("Grant a user access to vaults").action(async () => {
+    await ensureCliIdentity();
     const repo = await findRepository(); const registry = await readRegistry(repo);
     const vaults = [...new Set(registry.users.flatMap((item) => item.vaults))].sort();
     const publicKey = await input({ message: "Public key or age recipient", validate: (value) => { try { parseRecipient(value); return true; } catch (error) { return (error as Error).message; } } });
@@ -82,8 +101,9 @@ export function createProgram(): Command {
     process.stdout.write(formatUsers((await readRegistry(await findRepository())).users));
   });
   user.command("remove").description("Remove a user's vault access").action(async () => {
-    const repo = await findRepository(); const registry = await readRegistry(repo); const mine = new Set(await currentRecipients(repo));
-    const candidates = registry.users.filter((item) => !mine.has(item.recipient));
+    await ensureCliIdentity();
+    const repo = await findRepository(); const registry = await readRegistry(repo); const mine = await currentRecipient();
+    const candidates = registry.users.filter((item) => item.recipient !== mine);
     if (!candidates.length) throw new Error("There are no other users to remove.");
     const username = await select({ message: "Remove user", choices: candidates.map((item) => ({ name: item.username, value: item.username })) });
     if (!await confirm({ message: `Remove ${username} and rotate affected vault keys?`, default: false })) return;
