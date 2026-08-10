@@ -14,7 +14,8 @@ and stay behind a small command surface.
 
 ## Install
 
-GitVaulty requires Node.js 20 or newer.
+GitVaulty is available on [npm](https://www.npmjs.com/package/gitvaulty) and requires Node.js 20 or
+newer.
 
 ```sh
 npm install --save-dev gitvaulty
