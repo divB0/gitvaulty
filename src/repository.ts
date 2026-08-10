@@ -5,8 +5,6 @@ import { GitVaultyError } from "./errors.js";
 
 export interface Repository {
   root: string;
-  gitCommonDir: string;
-  keyFile: string;
   registryFile: string;
   sopsConfigFile: string;
   vaultsDir: string;
@@ -20,13 +18,9 @@ async function gitPath(cwd: string, ...args: string[]): Promise<string> {
 
 export async function findRepository(cwd = process.cwd()): Promise<Repository> {
   const root = await gitPath(cwd, "rev-parse", "--show-toplevel");
-  const commonRaw = await gitPath(cwd, "rev-parse", "--git-common-dir");
   const excludeRaw = await gitPath(cwd, "rev-parse", "--git-path", "info/exclude");
-  const gitCommonDir = path.resolve(root, commonRaw);
   return {
     root,
-    gitCommonDir,
-    keyFile: path.join(gitCommonDir, "gitvaulty", "age", "keys.txt"),
     registryFile: path.join(root, ".gitvaulty", "recipients.json"),
     sopsConfigFile: path.join(root, ".sops.yaml"),
     vaultsDir: path.join(root, "vaults"),
@@ -45,4 +39,3 @@ export function validateName(name: string): string {
 }
 
 export async function ensureParent(file: string): Promise<void> { await mkdir(path.dirname(file), { recursive: true }); }
-

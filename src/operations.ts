@@ -3,7 +3,7 @@ import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import spawn from "cross-spawn";
 import type { Repository } from "./repository.js";
 import { ensureInitialized, findRepository, validateName } from "./repository.js";
-import { currentRecipients, readIdentity } from "./key.js";
+import { currentRecipient, readIdentity } from "./key.js";
 import { type Registry, type VaultUser, normalizeVaultUser, readRegistry, recipientsFor, writeRegistry } from "./registry.js";
 import { decryptVault, editVault, encryptVault, rotateVaultKey, updateVaultKeys } from "./sops.js";
 import { ensureTemplateDirectory } from "./templates.js";
@@ -19,11 +19,10 @@ export async function initialize(repo: Repository, user: { username: string; rec
 export function vaultFile(repo: Repository, name: string): string { return path.join(repo.vaultsDir, validateName(name), "vault.sops.json"); }
 
 async function registeredLocalUser(repo: Repository, registry: Registry): Promise<VaultUser> {
-  const local = new Set(await currentRecipients(repo));
-  const matches = registry.users.filter((user) => local.has(user.recipient));
-  if (matches.length === 0) throw new GitVaultyError("No local age or SSH key matches a registered user. Ask an existing user to add your public recipient.");
-  if (matches.length > 1) throw new GitVaultyError("Multiple local keys match registered users. Keep only the intended repository identity available.");
-  return matches[0]!;
+  const recipient = await currentRecipient();
+  const user = registry.users.find((candidate) => candidate.recipient === recipient);
+  if (!user) throw new GitVaultyError("Your global age key is not registered. Ask an existing user to add its public recipient.");
+  return user;
 }
 
 export async function createVault(repo: Repository, name: string): Promise<void> {

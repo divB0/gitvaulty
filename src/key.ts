@@ -2,61 +2,56 @@ import { chmod, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { generateIdentity, identityToRecipient } from "age-encryption";
-import type { Repository } from "./repository.js";
-import { ensureParent } from "./repository.js";
 import { GitVaultyError } from "./errors.js";
-import { parseRecipient } from "./recipient.js";
+import { ensureParent } from "./repository.js";
+
+export interface StoredIdentity { identity: string; recipient: string }
+
+export function identityFile(
+  environment: NodeJS.ProcessEnv = process.env,
+  homeDirectory = os.homedir(),
+  platform = process.platform,
+): string {
+  const override = environment.GITVAULTY_AGE_KEY_FILE ?? environment.SOPS_AGE_KEY_FILE;
+  if (override) return path.resolve(override);
+  if (platform === "win32" && environment.APPDATA) return path.join(environment.APPDATA, "gitvaulty", "identity.txt");
+  const config = environment.XDG_CONFIG_HOME ?? path.join(homeDirectory, ".config");
+  return path.join(config, "gitvaulty", "identity.txt");
+}
 
 function cleanIdentity(value: string): string {
   const identity = value.split(/\r?\n/).map((line) => line.trim()).find((line) => line.startsWith("AGE-SECRET-KEY-"));
-  if (!identity) throw new GitVaultyError("No valid age private key was found.");
+  if (!identity) throw new GitVaultyError("No valid native age private key was found.");
   return identity;
 }
 
-export async function readIdentity(repo: Repository): Promise<string> {
-  try { return cleanIdentity(await readFile(repo.keyFile, "utf8")); }
+export async function readIdentity(file = identityFile()): Promise<string> {
+  try { return cleanIdentity(await readFile(file, "utf8")); }
   catch (error) {
     if (error instanceof GitVaultyError) throw error;
-    throw new GitVaultyError("No local key found. Run `gitvaulty key generate` or `gitvaulty key import`.");
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") throw new GitVaultyError(`No GitVaulty key found at ${file}.`);
+    throw error;
   }
 }
 
-async function storeIdentity(repo: Repository, value: string): Promise<{ identity: string; recipient: string }> {
+export async function restoreIdentity(value: string, file = identityFile(), replace = false): Promise<StoredIdentity> {
   const identity = cleanIdentity(value);
   let recipient: string;
   try { recipient = await identityToRecipient(identity); }
   catch { throw new GitVaultyError("That is not a valid native age private key."); }
-  await ensureParent(repo.keyFile);
-  await writeFile(repo.keyFile, `# GitVaulty repository identity\n${identity}\n`, { mode: 0o600, flag: "wx" }).catch((error: NodeJS.ErrnoException) => {
-    if (error.code === "EEXIST") throw new GitVaultyError("A local key already exists for this repository.");
+  await ensureParent(file);
+  await writeFile(file, `# GitVaulty global identity\n${identity}\n`, { mode: 0o600, flag: replace ? "w" : "wx" }).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === "EEXIST") throw new GitVaultyError(`A GitVaulty key already exists at ${file}.`);
     throw error;
   });
-  await chmod(repo.keyFile, 0o600);
+  await chmod(file, 0o600);
   return { identity, recipient };
 }
 
-export async function generateKey(repo: Repository): Promise<{ identity: string; recipient: string }> {
-  return storeIdentity(repo, await generateIdentity());
+export async function createIdentity(file = identityFile()): Promise<StoredIdentity> {
+  return restoreIdentity(await generateIdentity(), file);
 }
 
-export async function importKey(repo: Repository, identity: string): Promise<{ identity: string; recipient: string }> {
-  return storeIdentity(repo, identity);
-}
-
-export async function currentRecipient(repo: Repository): Promise<string> { return identityToRecipient(await readIdentity(repo)); }
-
-export async function currentRecipients(repo: Repository, homeDirectory = os.homedir()): Promise<string[]> {
-  const recipients: string[] = [];
-  try { recipients.push(await currentRecipient(repo)); }
-  catch { /* a repository age identity is optional for SSH users */ }
-
-  const sshPublicKey = path.join(homeDirectory, ".ssh", "id_ed25519.pub");
-  try {
-    const parsed = parseRecipient(await readFile(sshPublicKey, "utf8"));
-    if (parsed.type !== "ssh-ed25519") throw new GitVaultyError(`${sshPublicKey} is not an SSH Ed25519 public key.`);
-    recipients.push(parsed.recipient);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-  }
-  return [...new Set(recipients)];
+export async function currentRecipient(file = identityFile()): Promise<string> {
+  return identityToRecipient(await readIdentity(file));
 }

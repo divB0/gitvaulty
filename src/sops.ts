@@ -1,9 +1,9 @@
 import { createRequire } from "node:module";
-import { existsSync } from "node:fs";
 import path from "node:path";
 import type { Repository } from "./repository.js";
 import { executeChecked } from "./process.js";
 import { GitVaultyError } from "./errors.js";
+import { identityFile } from "./key.js";
 
 const require = createRequire(import.meta.url);
 
@@ -17,7 +17,7 @@ export function resolveSops(): string {
 
 function env(repo: Repository): NodeJS.ProcessEnv {
   const result = { ...process.env };
-  if (!result.SOPS_AGE_KEY_FILE && existsSync(repo.keyFile)) result.SOPS_AGE_KEY_FILE = repo.keyFile;
+  result.SOPS_AGE_KEY_FILE = identityFile(result);
   return result;
 }
 
