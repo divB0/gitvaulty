@@ -1,8 +1,11 @@
 import { chmod, readFile, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { generateIdentity, identityToRecipient } from "age-encryption";
 import type { Repository } from "./repository.js";
 import { ensureParent } from "./repository.js";
 import { GitVaultyError } from "./errors.js";
+import { parseRecipient } from "./recipient.js";
 
 function cleanIdentity(value: string): string {
   const identity = value.split(/\r?\n/).map((line) => line.trim()).find((line) => line.startsWith("AGE-SECRET-KEY-"));
@@ -42,3 +45,18 @@ export async function importKey(repo: Repository, identity: string): Promise<{ i
 
 export async function currentRecipient(repo: Repository): Promise<string> { return identityToRecipient(await readIdentity(repo)); }
 
+export async function currentRecipients(repo: Repository, homeDirectory = os.homedir()): Promise<string[]> {
+  const recipients: string[] = [];
+  try { recipients.push(await currentRecipient(repo)); }
+  catch { /* a repository age identity is optional for SSH users */ }
+
+  const sshPublicKey = path.join(homeDirectory, ".ssh", "id_ed25519.pub");
+  try {
+    const parsed = parseRecipient(await readFile(sshPublicKey, "utf8"));
+    if (parsed.type !== "ssh-ed25519") throw new GitVaultyError(`${sshPublicKey} is not an SSH Ed25519 public key.`);
+    recipients.push(parsed.recipient);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+  return [...new Set(recipients)];
+}

@@ -3,16 +3,41 @@ import path from "node:path";
 import type { Repository } from "./repository.js";
 import { ensureParent, validateName } from "./repository.js";
 import { GitVaultyError } from "./errors.js";
+import { normalizeUsername, parseRecipient } from "./recipient.js";
 
-export interface VaultUser { id: string; recipient: string; vaults: string[] }
+export interface VaultUser { username: string; recipient: string; vaults: string[] }
 export interface Registry { version: 1; users: VaultUser[] }
+
+export function normalizeVaultUser(user: VaultUser): VaultUser {
+  if (!user || typeof user !== "object" || !Array.isArray(user.vaults) || user.vaults.some((vault) => typeof vault !== "string")) {
+    throw new GitVaultyError("Invalid user entry.");
+  }
+  return {
+    username: normalizeUsername(user.username),
+    recipient: parseRecipient(user.recipient).recipient,
+    vaults: [...new Set(user.vaults.map(validateName))].sort(),
+  };
+}
+
+function normalizeRegistry(value: unknown): Registry {
+  if (!value || typeof value !== "object" || (value as Registry).version !== 1 || !Array.isArray((value as Registry).users)) {
+    throw new GitVaultyError("Unsupported recipient registry format.");
+  }
+  let users: VaultUser[];
+  try { users = (value as Registry).users.map(normalizeVaultUser); }
+  catch { throw new GitVaultyError("Unsupported recipient registry format."); }
+  const usernames = new Set(users.map((user) => user.username));
+  const recipients = new Set(users.map((user) => user.recipient));
+  if (usernames.size !== users.length || recipients.size !== users.length) throw new GitVaultyError("Duplicate username or recipient.");
+  users.sort((a, b) => a.username.localeCompare(b.username));
+  return { version: 1, users };
+}
 
 export async function readRegistry(repo: Repository): Promise<Registry> {
   let value: unknown;
   try { value = JSON.parse(await readFile(repo.registryFile, "utf8")); }
   catch { throw new GitVaultyError("The GitVaulty recipient registry is missing or invalid."); }
-  if (!value || typeof value !== "object" || (value as Registry).version !== 1 || !Array.isArray((value as Registry).users)) throw new GitVaultyError("Unsupported recipient registry format.");
-  return value as Registry;
+  return normalizeRegistry(value);
 }
 
 export function recipientsFor(registry: Registry, vault: string): string[] {
@@ -33,12 +58,8 @@ async function atomicWrite(file: string, data: string): Promise<void> {
 }
 
 export async function writeRegistry(repo: Repository, registry: Registry): Promise<void> {
-  registry.users.sort((a, b) => a.id.localeCompare(b.id));
-  for (const user of registry.users) {
-    user.vaults = [...new Set(user.vaults.map(validateName))].sort();
-    if (!user.id.trim() || !/^age1[0-9a-z]+$/.test(user.recipient)) throw new GitVaultyError("Invalid user ID or native age recipient.");
-  }
-  await atomicWrite(repo.registryFile, `${JSON.stringify(registry, null, 2)}\n`);
-  await atomicWrite(repo.sopsConfigFile, sopsConfig(registry));
+  const normalized = normalizeRegistry(registry);
+  registry.users = normalized.users;
+  await atomicWrite(repo.registryFile, `${JSON.stringify(normalized, null, 2)}\n`);
+  await atomicWrite(repo.sopsConfigFile, sopsConfig(normalized));
 }
-

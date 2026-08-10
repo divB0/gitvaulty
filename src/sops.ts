@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import type { Repository } from "./repository.js";
 import { executeChecked } from "./process.js";
@@ -15,7 +16,9 @@ export function resolveSops(): string {
 }
 
 function env(repo: Repository): NodeJS.ProcessEnv {
-  return { ...process.env, SOPS_AGE_KEY_FILE: process.env.SOPS_AGE_KEY_FILE ?? repo.keyFile };
+  const result = { ...process.env };
+  if (!result.SOPS_AGE_KEY_FILE && existsSync(repo.keyFile)) result.SOPS_AGE_KEY_FILE = repo.keyFile;
+  return result;
 }
 
 export async function encryptVault(repo: Repository, relativeFile: string, plaintext: string, recipients: string[]): Promise<string> {

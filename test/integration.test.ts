@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { generateIdentity, identityToRecipient } from "age-encryption";
+import { Buffer } from "node:buffer";
 import { beforeEach, describe, expect, it } from "vitest";
 import { executeChecked } from "../src/process.js";
 import { addUser, createVault, initialize, removeUser, runWithVault, vaultData, vaultFile } from "../src/operations.js";
@@ -22,7 +22,7 @@ describe("GitVaulty workflow", () => {
   it("creates, renders, checks, runs, and rotates a vault", async () => {
     const repo = await findRepository(root);
     const owner = await generateKey(repo);
-    await initialize(repo, { id: "owner", recipient: owner.recipient });
+    await initialize(repo, { username: "owner", recipient: owner.recipient });
     await createVault(repo, "dev");
 
     const registry = await readRegistry(repo);
@@ -47,8 +47,13 @@ describe("GitVaulty workflow", () => {
     expect(await runWithVault(repo, "dev", [process.execPath, "-e", `require('node:fs').writeFileSync(${JSON.stringify(captured)}, process.env.TOKEN)`])).toBe(0);
     expect(await readFile(captured, "utf8")).toBe("very-secret");
 
-    const teammateIdentity = await generateIdentity();
-    const teammate = { id: "teammate", recipient: await identityToRecipient(teammateIdentity), vaults: ["dev"] };
+    const field = (value: Buffer) => {
+      const length = Buffer.alloc(4);
+      length.writeUInt32BE(value.length);
+      return Buffer.concat([length, value]);
+    };
+    const sshRecipient = `ssh-ed25519 ${Buffer.concat([field(Buffer.from("ssh-ed25519")), field(Buffer.alloc(32, 11))]).toString("base64")}`;
+    const teammate = { username: "teammate", recipient: sshRecipient, vaults: ["dev"] };
     await addUser(repo, teammate);
     expect(recipientsFor(await readRegistry(repo), "dev")).toHaveLength(2);
     await removeUser(repo, "teammate");
@@ -56,4 +61,3 @@ describe("GitVaulty workflow", () => {
     expect(await vaultData(repo, "dev")).toEqual(plaintext);
   }, 30_000);
 });
-
