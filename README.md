@@ -109,12 +109,24 @@ Only primitive values from the vault's top-level `env` object are added to the c
 npx gitvaulty key generate
 npx gitvaulty key import
 npx gitvaulty user add
+npx gitvaulty user list
 npx gitvaulty user remove
 ```
 
-A new developer either imports their recovery key or generates a new key and sends its **public**
-`age1...` recipient to an existing user. An existing user runs `user add` to grant selected vault
-access. Only someone who can already decrypt the affected vaults can add or remove access.
+A new developer sends an existing user one of these **public** recipients:
+
+- a native age recipient beginning with `age1...`;
+- an OpenSSH Ed25519 public key beginning with `ssh-ed25519`.
+
+`user add` detects the format automatically, strips any SSH comment, suggests a lowercase username
+when the comment permits it, and asks the existing user to confirm the username and vault access.
+Never share an `AGE-SECRET-KEY-...` recovery key or an SSH private key. `user list` shows usernames,
+detected key types, and vault access without printing complete key material.
+
+Native age keys are the default. SSH users keep the matching private key at the conventional
+`~/.ssh/id_ed25519` path; custom paths, agent-only keys, hardware-backed SSH identities, RSA keys,
+and other SSH algorithms are not supported yet. Only someone who can already decrypt the affected
+vaults can add or remove access.
 
 Removing a user rotates the affected vault data keys and removes that user's recipient. It cannot
 erase Git history or plaintext the user previously copied, so rotate external database, cloud, and

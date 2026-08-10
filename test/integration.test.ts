@@ -1,4 +1,5 @@
-import { mkdtemp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { generateKeyPairSync } from "node:crypto";
+import { mkdtemp, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Buffer } from "node:buffer";
@@ -52,12 +53,41 @@ describe("GitVaulty workflow", () => {
       length.writeUInt32BE(value.length);
       return Buffer.concat([length, value]);
     };
-    const sshRecipient = `ssh-ed25519 ${Buffer.concat([field(Buffer.from("ssh-ed25519")), field(Buffer.alloc(32, 11))]).toString("base64")}`;
+    const sshKeys = generateKeyPairSync("ed25519");
+    const sshPublicDer = sshKeys.publicKey.export({ format: "der", type: "spki" });
+    const sshRecipient = `ssh-ed25519 ${Buffer.concat([field(Buffer.from("ssh-ed25519")), field(sshPublicDer.subarray(-32))]).toString("base64")}`;
     const teammate = { username: "teammate", recipient: sshRecipient, vaults: ["dev"] };
     await addUser(repo, teammate);
     expect(recipientsFor(await readRegistry(repo), "dev")).toHaveLength(2);
+
+    const sshPrivateKey = path.join(root, "id_ed25519");
+    await writeFile(sshPrivateKey, sshKeys.privateKey.export({ format: "pem", type: "pkcs8" }), { mode: 0o600 });
+    const ageKeyBackup = `${repo.keyFile}.backup`;
+    await rename(repo.keyFile, ageKeyBackup);
+    const previousSshKey = process.env.SOPS_AGE_SSH_PRIVATE_KEY_FILE;
+    process.env.SOPS_AGE_SSH_PRIVATE_KEY_FILE = sshPrivateKey;
+    try { expect(await vaultData(repo, "dev")).toEqual(plaintext); }
+    finally {
+      if (previousSshKey === undefined) delete process.env.SOPS_AGE_SSH_PRIVATE_KEY_FILE;
+      else process.env.SOPS_AGE_SSH_PRIVATE_KEY_FILE = previousSshKey;
+      await rename(ageKeyBackup, repo.keyFile);
+    }
+
     await removeUser(repo, "teammate");
     expect(recipientsFor(await readRegistry(repo), "dev")).toEqual([owner.recipient]);
     expect(await vaultData(repo, "dev")).toEqual(plaintext);
+
+    const registryBeforeFailure = await readRegistry(repo);
+    const vaultBeforeFailure = await readFile(vaultFile(repo, "dev"), "utf8");
+    const previousSops = process.env.GITVAULTY_SOPS;
+    process.env.GITVAULTY_SOPS = path.join(root, "missing-sops");
+    try {
+      await expect(addUser(repo, { username: "rollback", recipient: sshRecipient, vaults: ["dev"] })).rejects.toThrow();
+    } finally {
+      if (previousSops === undefined) delete process.env.GITVAULTY_SOPS;
+      else process.env.GITVAULTY_SOPS = previousSops;
+    }
+    expect(await readRegistry(repo)).toEqual(registryBeforeFailure);
+    expect(await readFile(vaultFile(repo, "dev"), "utf8")).toBe(vaultBeforeFailure);
   }, 30_000);
 });
