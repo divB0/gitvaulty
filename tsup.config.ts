@@ -8,7 +8,6 @@ export default defineConfig([
     platform: "node",
     clean: true,
     sourcemap: true,
-    banner: { js: "#!/usr/bin/env node" },
   },
   {
     entry: { index: "src/index.ts" },
@@ -17,6 +16,6 @@ export default defineConfig([
     platform: "node",
     clean: false,
     sourcemap: true,
-      dts: false,
+    dts: false,
   },
 ]);

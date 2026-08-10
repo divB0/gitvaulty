@@ -10,6 +10,9 @@
   },
   "homepage": "https://github.com/divB0/gitvaulty#readme",
   "bugs": "https://github.com/divB0/gitvaulty/issues",
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": [
     "secrets",
     "git",
@@ -37,7 +40,7 @@
   ],
   "scripts": {
     "build": "tsup && tsc -p tsconfig.build.json",
-    "check": "npm run typecheck && npm test && npm run build",
+    "check": "npm run typecheck && npm test && npm run build && node dist/cli.js --help >/dev/null",
     "prepublishOnly": "npm run check",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -55,6 +58,9 @@
     "@clef-sh/sops-linux-arm64": "3.12.2",
     "@clef-sh/sops-linux-x64": "3.12.2",
     "@clef-sh/sops-win32-x64": "3.12.2"
+  },
+  "overrides": {
+    "esbuild": "0.28.2"
   },
   "devDependencies": {
     "@types/cross-spawn": "6.0.6",
