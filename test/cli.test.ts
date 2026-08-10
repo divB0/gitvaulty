@@ -28,12 +28,12 @@ describe("GitVaulty CLI", () => {
 
   it("formats a deterministic user list", () => {
     expect(formatUsers([
-      { username: "zoe", recipient: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", vaults: ["prod"] },
+      { username: "zoe", recipient: "age1nx73yf2gmghjapkvxzkx26z72uakmnppchya8d4xfjd67hhglqdq7swsm0", vaults: ["prod"] },
       { username: "alice", recipient: "age1nx73yf2gmghjapkvxzkx26z72uakmnppchya8d4xfjd67hhglqdq7swsm0", vaults: ["staging", "dev"] },
     ])).toBe([
-      "USERNAME  KEY          VAULTS",
-      "alice     age          dev, staging",
-      "zoe       ssh-ed25519  prod",
+      "USERNAME  VAULTS",
+      "alice     dev, staging",
+      "zoe       prod",
       "",
     ].join("\n"));
   });

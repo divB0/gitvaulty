@@ -38,9 +38,9 @@ npx gitvaulty vault create dev
 npx gitvaulty vault edit dev
 ```
 
-`init` generates or imports a repository key and registers the first user. A generated private key
-is printed once as a recovery key; store it in your password manager. The working copy is stored at
-`.git/gitvaulty/age/keys.txt`, outside Git's tracked files.
+`init` uses your global age identity and registers the first user. If no identity exists, GitVaulty
+asks before creating one at `~/.config/gitvaulty/identity.txt`. Back it up once with
+`gitvaulty key backup`; the same identity works across all your GitVaulty repositories.
 
 Edit the encrypted vault as JSON. Values under `env` are available to `run`; any JSON value can be
 used by a template.
@@ -106,27 +106,22 @@ Only primitive values from the vault's top-level `env` object are added to the c
 ## Keys and users
 
 ```sh
-npx gitvaulty key generate
-npx gitvaulty key import
+npx gitvaulty key create
+npx gitvaulty key public
+npx gitvaulty key backup
+npx gitvaulty key restore
 npx gitvaulty user add
 npx gitvaulty user list
 npx gitvaulty user remove
 ```
 
-A new developer sends an existing user one of these **public** recipients:
+GitVaulty accepts native age recipients only. A new developer runs `gitvaulty key public` and sends
+the resulting `age1...` recipient to an existing user. `user add` confirms the username and vault
+access. Never share the `AGE-SECRET-KEY-...` value printed by `key backup`.
 
-- a native age recipient beginning with `age1...`;
-- an OpenSSH Ed25519 public key beginning with `ssh-ed25519`.
-
-`user add` detects the format automatically, strips any SSH comment, suggests a lowercase username
-when the comment permits it, and asks the existing user to confirm the username and vault access.
-Never share an `AGE-SECRET-KEY-...` recovery key or an SSH private key. `user list` shows usernames,
-detected key types, and vault access without printing complete key material.
-
-Native age keys are the default. SSH users keep the matching private key at the conventional
-`~/.ssh/id_ed25519` path; custom paths, agent-only keys, hardware-backed SSH identities, RSA keys,
-and other SSH algorithms are not supported yet. Only someone who can already decrypt the affected
-vaults can add or remove access.
+The global identity means each person needs one backup for every GitVaulty repository. CI and
+service accounts should use a separate identity through `GITVAULTY_AGE_KEY_FILE=/secure/key.txt`.
+Only someone who can already decrypt the affected vaults can add or remove access.
 
 Removing a user rotates the affected vault data keys and removes that user's recipient. It cannot
 erase Git history or plaintext the user previously copied, so rotate external database, cloud, and

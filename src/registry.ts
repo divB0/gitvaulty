@@ -14,7 +14,7 @@ export function normalizeVaultUser(user: VaultUser): VaultUser {
   }
   return {
     username: normalizeUsername(user.username),
-    recipient: parseRecipient(user.recipient).recipient,
+    recipient: parseRecipient(user.recipient),
     vaults: [...new Set(user.vaults.map(validateName))].sort(),
   };
 }

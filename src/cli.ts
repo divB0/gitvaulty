@@ -22,11 +22,11 @@ async function localUsername(root: string): Promise<string> {
 export function formatUsers(users: VaultUser[]): string {
   if (users.length === 0) return "No users.\n";
   const rows = users
-    .map((user) => [user.username, parseRecipient(user.recipient).type, [...user.vaults].sort().join(", ")])
+    .map((user) => [user.username, [...user.vaults].sort().join(", ")])
     .sort((left, right) => left[0]!.localeCompare(right[0]!));
-  const allRows = [["USERNAME", "KEY", "VAULTS"], ...rows];
-  const widths = [0, 1].map((column) => Math.max(...allRows.map((row) => row[column]!.length)));
-  return `${allRows.map((row) => `${row[0]!.padEnd(widths[0]!)}  ${row[1]!.padEnd(widths[1]!)}  ${row[2]!}`).join("\n")}\n`;
+  const allRows = [["USERNAME", "VAULTS"], ...rows];
+  const width = Math.max(...allRows.map((row) => row[0]!.length));
+  return `${allRows.map((row) => `${row[0]!.padEnd(width)}  ${row[1]!}`).join("\n")}\n`;
 }
 
 async function hasIdentity(): Promise<boolean> {
@@ -89,13 +89,12 @@ export function createProgram(): Command {
     await ensureCliIdentity();
     const repo = await findRepository(); const registry = await readRegistry(repo);
     const vaults = [...new Set(registry.users.flatMap((item) => item.vaults))].sort();
-    const publicKey = await input({ message: "Public key or age recipient", validate: (value) => { try { parseRecipient(value); return true; } catch (error) { return (error as Error).message; } } });
-    const parsed = parseRecipient(publicKey);
-    process.stdout.write(`Detected key type: ${parsed.type}\n`);
-    const username = await input({ message: "Username", default: parsed.suggestedUsername, validate: (value) => { try { normalizeUsername(value); return true; } catch (error) { return (error as Error).message; } } });
+    const publicKey = await input({ message: "Public age recipient", validate: (value) => { try { parseRecipient(value); return true; } catch (error) { return (error as Error).message; } } });
+    const recipient = parseRecipient(publicKey);
+    const username = await input({ message: "Username", validate: (value) => { try { normalizeUsername(value); return true; } catch (error) { return (error as Error).message; } } });
     const selected = await checkbox({ message: "Vault access", choices: vaults.map((name) => ({ name, value: name })), required: true });
     const normalizedUsername = normalizeUsername(username);
-    await addUser(repo, { username: normalizedUsername, recipient: parsed.recipient, vaults: selected }); process.stdout.write(`Added ${normalizedUsername}.\n`);
+    await addUser(repo, { username: normalizedUsername, recipient, vaults: selected }); process.stdout.write(`Added ${normalizedUsername}.\n`);
   });
   user.command("list").description("List users and vault access").action(async () => {
     process.stdout.write(formatUsers((await readRegistry(await findRepository())).users));

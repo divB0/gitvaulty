@@ -1,28 +1,35 @@
-import { generateKeyPairSync } from "node:crypto";
-import { mkdtemp, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { Buffer } from "node:buffer";
-import { beforeEach, describe, expect, it } from "vitest";
+import { generateIdentity, identityToRecipient } from "age-encryption";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { executeChecked } from "../src/process.js";
 import { addUser, createVault, initialize, removeUser, runWithVault, vaultData, vaultFile } from "../src/operations.js";
 import { findRepository } from "../src/repository.js";
-import { generateKey } from "../src/key.js";
+import { createIdentity } from "../src/key.js";
 import { readRegistry, recipientsFor } from "../src/registry.js";
 import { encryptVault } from "../src/sops.js";
 import { checkVault, renderVault } from "../src/templates.js";
 
 describe("GitVaulty workflow", () => {
   let root: string;
+  let previousKeyFile: string | undefined;
 
   beforeEach(async () => {
     root = await mkdtemp(path.join(os.tmpdir(), "gitvaulty-test-"));
+    previousKeyFile = process.env.GITVAULTY_AGE_KEY_FILE;
+    process.env.GITVAULTY_AGE_KEY_FILE = path.join(root, "global-identity.txt");
     await executeChecked("git", ["init", "-q"], { cwd: root });
+  });
+
+  afterEach(() => {
+    if (previousKeyFile === undefined) delete process.env.GITVAULTY_AGE_KEY_FILE;
+    else process.env.GITVAULTY_AGE_KEY_FILE = previousKeyFile;
   });
 
   it("creates, renders, checks, runs, and rotates a vault", async () => {
     const repo = await findRepository(root);
-    const owner = await generateKey(repo);
+    const owner = await createIdentity();
     await initialize(repo, { username: "owner", recipient: owner.recipient });
     await createVault(repo, "dev");
 
@@ -48,31 +55,9 @@ describe("GitVaulty workflow", () => {
     expect(await runWithVault(repo, "dev", [process.execPath, "-e", `require('node:fs').writeFileSync(${JSON.stringify(captured)}, process.env.TOKEN)`])).toBe(0);
     expect(await readFile(captured, "utf8")).toBe("very-secret");
 
-    const field = (value: Buffer) => {
-      const length = Buffer.alloc(4);
-      length.writeUInt32BE(value.length);
-      return Buffer.concat([length, value]);
-    };
-    const sshKeys = generateKeyPairSync("ed25519");
-    const sshPublicDer = sshKeys.publicKey.export({ format: "der", type: "spki" });
-    const sshRecipient = `ssh-ed25519 ${Buffer.concat([field(Buffer.from("ssh-ed25519")), field(sshPublicDer.subarray(-32))]).toString("base64")}`;
-    const teammate = { username: "teammate", recipient: sshRecipient, vaults: ["dev"] };
-    await addUser(repo, teammate);
+    const teammateRecipient = await identityToRecipient(await generateIdentity());
+    await addUser(repo, { username: "teammate", recipient: teammateRecipient, vaults: ["dev"] });
     expect(recipientsFor(await readRegistry(repo), "dev")).toHaveLength(2);
-
-    const sshPrivateKey = path.join(root, "id_ed25519");
-    await writeFile(sshPrivateKey, sshKeys.privateKey.export({ format: "pem", type: "pkcs8" }), { mode: 0o600 });
-    const ageKeyBackup = `${repo.keyFile}.backup`;
-    await rename(repo.keyFile, ageKeyBackup);
-    const previousSshKey = process.env.SOPS_AGE_SSH_PRIVATE_KEY_FILE;
-    process.env.SOPS_AGE_SSH_PRIVATE_KEY_FILE = sshPrivateKey;
-    try { expect(await vaultData(repo, "dev")).toEqual(plaintext); }
-    finally {
-      if (previousSshKey === undefined) delete process.env.SOPS_AGE_SSH_PRIVATE_KEY_FILE;
-      else process.env.SOPS_AGE_SSH_PRIVATE_KEY_FILE = previousSshKey;
-      await rename(ageKeyBackup, repo.keyFile);
-    }
-
     await removeUser(repo, "teammate");
     expect(recipientsFor(await readRegistry(repo), "dev")).toEqual([owner.recipient]);
     expect(await vaultData(repo, "dev")).toEqual(plaintext);
@@ -82,7 +67,7 @@ describe("GitVaulty workflow", () => {
     const previousSops = process.env.GITVAULTY_SOPS;
     process.env.GITVAULTY_SOPS = path.join(root, "missing-sops");
     try {
-      await expect(addUser(repo, { username: "rollback", recipient: sshRecipient, vaults: ["dev"] })).rejects.toThrow();
+      await expect(addUser(repo, { username: "rollback", recipient: teammateRecipient, vaults: ["dev"] })).rejects.toThrow();
     } finally {
       if (previousSops === undefined) delete process.env.GITVAULTY_SOPS;
       else process.env.GITVAULTY_SOPS = previousSops;
