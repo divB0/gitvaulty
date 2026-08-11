@@ -121,8 +121,20 @@ the resulting `age1...` recipient to an existing user. `user add` confirms the u
 access. Never share the `AGE-SECRET-KEY-...` value printed by `key backup`.
 
 The global identity means each person needs one backup for every GitVaulty repository. CI and
-service accounts should use a separate identity through `GITVAULTY_AGE_KEY_FILE=/secure/key.txt`.
-Only someone who can already decrypt the affected vaults can add or remove access.
+service accounts should inject a separate private identity through either content variable:
+
+```sh
+GITVAULTY_KEY='AGE-SECRET-KEY-...' npx gitvaulty vault render production
+SOPS_AGE_KEY='AGE-SECRET-KEY-...' npx gitvaulty vault render production
+```
+
+`GITVAULTY_KEY` takes precedence when both are set. `key public` works with an injected identity,
+while `key create`, `key backup`, and `key restore` continue to manage only the persistent global
+file. Mounted secrets can instead use `GITVAULTY_AGE_KEY_FILE=/secure/key.txt`.
+
+Private-key content and key-provider variables are available to SOPS but removed before
+`gitvaulty run` starts the application. Only someone who can already decrypt the affected vaults
+can add or remove access.
 
 Removing a user rotates the affected vault data keys and removes that user's recipient. It cannot
 erase Git history or plaintext the user previously copied, so rotate external database, cloud, and
