@@ -97,7 +97,9 @@ export async function runWithVault(repo: Repository, name: string, command: stri
   }
   return new Promise((resolve, reject) => {
     const [program, ...args] = command;
-    const child = spawn(program!, args, { cwd: repo.root, env: { ...process.env, ...injected }, stdio: "inherit" });
+    const childEnvironment = { ...process.env, ...injected };
+    for (const key of ["GITVAULTY_KEY", "SOPS_AGE_KEY", "GITVAULTY_AGE_KEY_FILE", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"]) delete childEnvironment[key];
+    const child = spawn(program!, args, { cwd: repo.root, env: childEnvironment, stdio: "inherit" });
     child.on("error", reject);
     child.on("exit", (code, signal) => {
       if (signal) { process.kill(process.pid, signal); return; }

@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { generateIdentity, identityToRecipient } from "age-encryption";
@@ -14,10 +14,14 @@ import { checkVault, renderVault } from "../src/templates.js";
 describe("GitVaulty workflow", () => {
   let root: string;
   let previousKeyFile: string | undefined;
+  let previousGitVaultyKey: string | undefined;
+  let previousSopsAgeKey: string | undefined;
 
   beforeEach(async () => {
     root = await mkdtemp(path.join(os.tmpdir(), "gitvaulty-test-"));
     previousKeyFile = process.env.GITVAULTY_AGE_KEY_FILE;
+    previousGitVaultyKey = process.env.GITVAULTY_KEY;
+    previousSopsAgeKey = process.env.SOPS_AGE_KEY;
     process.env.GITVAULTY_AGE_KEY_FILE = path.join(root, "global-identity.txt");
     await executeChecked("git", ["init", "-q"], { cwd: root });
   });
@@ -25,6 +29,10 @@ describe("GitVaulty workflow", () => {
   afterEach(() => {
     if (previousKeyFile === undefined) delete process.env.GITVAULTY_AGE_KEY_FILE;
     else process.env.GITVAULTY_AGE_KEY_FILE = previousKeyFile;
+    if (previousGitVaultyKey === undefined) delete process.env.GITVAULTY_KEY;
+    else process.env.GITVAULTY_KEY = previousGitVaultyKey;
+    if (previousSopsAgeKey === undefined) delete process.env.SOPS_AGE_KEY;
+    else process.env.SOPS_AGE_KEY = previousSopsAgeKey;
   });
 
   it("creates, renders, checks, runs, and rotates a vault", async () => {
@@ -51,9 +59,15 @@ describe("GitVaulty workflow", () => {
     await writeFile(output, "stale\n");
     expect(await checkVault(repo, "dev")).toEqual(["apps/api/.env.local"]);
 
+    process.env.GITVAULTY_KEY = owner.identity;
+    process.env.SOPS_AGE_KEY = await generateIdentity();
+    await rm(process.env.GITVAULTY_AGE_KEY_FILE!);
+    expect(await vaultData(repo, "dev")).toEqual(plaintext);
+
     const captured = path.join(root, "captured.txt");
-    expect(await runWithVault(repo, "dev", [process.execPath, "-e", `require('node:fs').writeFileSync(${JSON.stringify(captured)}, process.env.TOKEN)`])).toBe(0);
-    expect(await readFile(captured, "utf8")).toBe("very-secret");
+    const captureScript = `require('node:fs').writeFileSync(${JSON.stringify(captured)}, JSON.stringify({ token: process.env.TOKEN, gitvaultyKey: process.env.GITVAULTY_KEY ?? null, sopsAgeKey: process.env.SOPS_AGE_KEY ?? null, gitvaultyFile: process.env.GITVAULTY_AGE_KEY_FILE ?? null, sopsFile: process.env.SOPS_AGE_KEY_FILE ?? null }))`;
+    expect(await runWithVault(repo, "dev", [process.execPath, "-e", captureScript])).toBe(0);
+    expect(JSON.parse(await readFile(captured, "utf8"))).toEqual({ token: "very-secret", gitvaultyKey: null, sopsAgeKey: null, gitvaultyFile: null, sopsFile: null });
 
     const teammateRecipient = await identityToRecipient(await generateIdentity());
     await addUser(repo, { username: "teammate", recipient: teammateRecipient, vaults: ["dev"] });

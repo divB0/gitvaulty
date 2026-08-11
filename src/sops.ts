@@ -17,7 +17,14 @@ export function resolveSops(): string {
 
 function env(repo: Repository): NodeJS.ProcessEnv {
   const result = { ...process.env };
-  result.SOPS_AGE_KEY_FILE = identityFile(result);
+  const contentIdentity = result.GITVAULTY_KEY ?? result.SOPS_AGE_KEY;
+  delete result.GITVAULTY_KEY;
+  if (contentIdentity !== undefined) {
+    result.SOPS_AGE_KEY = contentIdentity;
+    delete result.SOPS_AGE_KEY_FILE;
+  } else {
+    result.SOPS_AGE_KEY_FILE = identityFile(result);
+  }
   return result;
 }
 
