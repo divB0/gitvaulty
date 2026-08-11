@@ -20,18 +20,24 @@ export function identityFile(
 }
 
 function cleanIdentity(value: string): string {
-  const identity = value.split(/\r?\n/).map((line) => line.trim()).find((line) => line.startsWith("AGE-SECRET-KEY-"));
-  if (!identity) throw new GitVaultyError("No valid native age private key was found.");
-  return identity;
+  const identities = value.split(/\s+/).map((item) => item.trim()).filter((item) => item.startsWith("AGE-SECRET-KEY-"));
+  if (identities.length !== 1) throw new GitVaultyError("No valid native age private key was found.");
+  return identities[0]!;
 }
 
-export async function readIdentity(file = identityFile()): Promise<string> {
+export async function readStoredIdentity(file = identityFile()): Promise<string> {
   try { return cleanIdentity(await readFile(file, "utf8")); }
   catch (error) {
     if (error instanceof GitVaultyError) throw error;
     if ((error as NodeJS.ErrnoException).code === "ENOENT") throw new GitVaultyError(`No GitVaulty key found at ${file}.`);
     throw error;
   }
+}
+
+export async function readIdentity(file = identityFile(), environment: NodeJS.ProcessEnv = process.env): Promise<string> {
+  if (Object.hasOwn(environment, "GITVAULTY_KEY")) return cleanIdentity(environment.GITVAULTY_KEY ?? "");
+  if (Object.hasOwn(environment, "SOPS_AGE_KEY")) return cleanIdentity(environment.SOPS_AGE_KEY ?? "");
+  return readStoredIdentity(file);
 }
 
 export async function restoreIdentity(value: string, file = identityFile(), replace = false): Promise<StoredIdentity> {
@@ -52,6 +58,6 @@ export async function createIdentity(file = identityFile()): Promise<StoredIdent
   return restoreIdentity(await generateIdentity(), file);
 }
 
-export async function currentRecipient(file = identityFile()): Promise<string> {
-  return identityToRecipient(await readIdentity(file));
+export async function currentRecipient(file = identityFile(), environment: NodeJS.ProcessEnv = process.env): Promise<string> {
+  return identityToRecipient(await readIdentity(file, environment));
 }

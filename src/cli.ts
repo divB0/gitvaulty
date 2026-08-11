@@ -3,7 +3,7 @@ import { checkbox, confirm, input, password, select } from "@inquirer/prompts";
 import { Command } from "commander";
 import { executeChecked } from "./process.js";
 import { findRepository } from "./repository.js";
-import { createIdentity, currentRecipient, identityFile, readIdentity, restoreIdentity } from "./key.js";
+import { createIdentity, currentRecipient, identityFile, readIdentity, readStoredIdentity, restoreIdentity } from "./key.js";
 import { addUser, createVault, edit, initialize, removeUser, runWithVault } from "./operations.js";
 import { normalizeUsername, parseRecipient } from "./recipient.js";
 import { checkVault, renderVault } from "./templates.js";
@@ -31,6 +31,14 @@ export function formatUsers(users: VaultUser[]): string {
 
 async function hasIdentity(): Promise<boolean> {
   try { await readIdentity(); return true; }
+  catch (error) {
+    if ((error as Error).message.startsWith("No GitVaulty key found")) return false;
+    throw error;
+  }
+}
+
+async function hasStoredIdentity(): Promise<boolean> {
+  try { await readStoredIdentity(); return true; }
   catch (error) {
     if ((error as Error).message.startsWith("No GitVaulty key found")) return false;
     throw error;
@@ -73,12 +81,12 @@ export function createProgram(): Command {
     process.stdout.write(`${await ensureCliIdentity()}\n`);
   });
   key.command("backup").description("Print the private key for backup").action(async () => {
-    await ensureCliIdentity();
+    const identity = await readStoredIdentity();
     if (!await confirm({ message: "Print your private GitVaulty key? Keep it secret.", default: false })) return;
-    process.stdout.write(`${await readIdentity()}\n`);
+    process.stdout.write(`${identity}\n`);
   });
   key.command("restore").description("Restore a private key backup").action(async () => {
-    const replace = await hasIdentity();
+    const replace = await hasStoredIdentity();
     if (replace && !await confirm({ message: "Replace the existing global GitVaulty key?", default: false })) return;
     const result = await restoreIdentity(await password({ message: "Paste your AGE-SECRET-KEY backup", mask: "*" }), identityFile(), replace);
     process.stdout.write(`Restored global key for ${result.recipient}.\n`);

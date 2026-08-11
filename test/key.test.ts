@@ -4,7 +4,7 @@ import path from "node:path";
 import { generateIdentity, identityToRecipient } from "age-encryption";
 import { describe, expect, it } from "vitest";
 
-import { createIdentity, currentRecipient, identityFile, readIdentity, restoreIdentity } from "../src/key.js";
+import { createIdentity, currentRecipient, identityFile, readIdentity, readStoredIdentity, restoreIdentity } from "../src/key.js";
 
 describe("global age identity", () => {
   it("resolves overrides and platform configuration directories", () => {
@@ -38,5 +38,24 @@ describe("global age identity", () => {
     const restored = await restoreIdentity(second, file, true);
     expect(restored).toEqual({ identity: second, recipient: await identityToRecipient(second) });
     expect(await readFile(file, "utf8")).toContain(second);
+  });
+
+  it("loads environment identities with GitVaulty precedence", async () => {
+    const gitvaulty = await generateIdentity();
+    const sops = await generateIdentity();
+    const missing = path.join(await mkdtemp(path.join(os.tmpdir(), "gitvaulty-env-")), "missing.txt");
+    expect(await readIdentity(missing, { GITVAULTY_KEY: gitvaulty, SOPS_AGE_KEY: sops })).toBe(gitvaulty);
+    expect(await readIdentity(missing, { SOPS_AGE_KEY: sops })).toBe(sops);
+    expect(await currentRecipient(missing, { GITVAULTY_KEY: gitvaulty })).toBe(await identityToRecipient(gitvaulty));
+    await expect(readIdentity(missing, { GITVAULTY_KEY: "invalid", SOPS_AGE_KEY: sops })).rejects.toThrow("valid native age private key");
+  });
+
+  it("keeps persistent backups separate from environment identities", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "gitvaulty-stored-"));
+    const file = path.join(root, "identity.txt");
+    const stored = await createIdentity(file);
+    const injected = await generateIdentity();
+    expect(await readIdentity(file, { GITVAULTY_KEY: injected })).toBe(injected);
+    expect(await readStoredIdentity(file)).toBe(stored.identity);
   });
 });
