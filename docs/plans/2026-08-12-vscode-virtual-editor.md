@@ -257,7 +257,60 @@ git add README.md vscode
 git commit -m "docs: explain native VS Code editing"
 ```
 
-### Task 6: Final regression and integration
+### Task 6: Add Marketplace packaging and trusted release automation
+
+**Files:**
+- Create: `vscode/assets/icon.png`
+- Create: `vscode/CHANGELOG.md`
+- Create: `vscode/LICENSE`
+- Create: `.github/workflows/vscode-release.yml`
+- Modify: `vscode/package.json`
+- Modify: `vscode/package-lock.json`
+- Modify: `vscode/.vscodeignore`
+- Modify: `vscode/README.md`
+
+**Step 1: Add Marketplace metadata and packaging checks**
+
+Use the permanent extension name `gitvaulty`, publisher placeholder `divb0`, display name
+`GitVaulty`, category `Other`, focused discovery keywords, repository/homepage/bugs links, preview
+status, a PNG icon, gallery banner, license, changelog, workspace extension kind, and explicit
+untrusted/virtual workspace capabilities. Add `@vscode/vsce`, `vscode:prepublish`, `package`,
+`package:local`, and `check:package` scripts. Keep tests, source maps, fixtures, keys, and repository
+internals out of the VSIX.
+
+**Step 2: Build and inspect a local platform package**
+
+Run: `npm --prefix vscode run check && npm --prefix vscode run package:local`
+
+Run: `npx --prefix vscode @vscode/vsce ls --tree`
+
+Expected: PASS and a target-specific VSIX containing the production bundle, documentation, icon,
+license, and exactly one compatible SOPS executable dependency.
+
+**Step 3: Add a cross-platform release workflow**
+
+Create a manually dispatchable and `vscode-v*` tag-triggered GitHub Actions workflow. A native
+matrix packages `darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-x64`, and `win32-x64` on matching
+GitHub-hosted runners with Node.js 22. Each job verifies the extension and uploads its VSIX. A
+separate publish job downloads every package and uses Marketplace trusted publishing via OIDC; tag
+releases publish normally and manual runs default to prerelease.
+
+**Step 4: Validate the workflow and package manifest**
+
+Run a local YAML parse, verify that package targets match the five optional SOPS packages, inspect
+the VSIX archive file list, and install the local VSIX with `code --install-extension --force`.
+
+Expected: the workflow is valid, no plaintext or development files are packaged, and VS Code lists
+`divb0.gitvaulty` at the built version.
+
+**Step 5: Commit**
+
+```sh
+git add .github/workflows/vscode-release.yml vscode
+git commit -m "chore: prepare VS Code Marketplace releases"
+```
+
+### Task 7: Final regression and integration
 
 **Files:**
 - Verify only; modify files only for defects found by the checks.
