@@ -4,12 +4,20 @@ export { findRepository, type Repository } from "./repository.js";
 export { createIdentity, currentRecipient, identityFile, readIdentity, readStoredIdentity, restoreIdentity, type StoredIdentity } from "./key.js";
 export {
   normalizeGitVaultyUser,
+  normalizeGitVaultyGroup,
+  normalizeGroupName,
+  normalizeFileGrant,
   normalizeSecretFile,
+  fileGrantFor,
+  filesForUser,
   readRegistry,
   writeRegistry,
   recipientsFor,
+  usernamesFor,
   type Registry,
   type GitVaultyUser,
+  type GitVaultyGroup,
+  type SecretFileGrant,
 } from "./registry.js";
 export {
   initialize,
@@ -19,6 +27,11 @@ export {
   editSecretFile,
   addUser,
   removeUser,
+  createGroup,
+  deleteGroup,
+  addGroupMember,
+  removeGroupMember,
+  setFileAccess,
   encryptedFileFor,
   plaintextFileFor,
   materializeSecretFiles,
@@ -31,4 +44,6 @@ export {
   type SecretFileStatus,
   type CleanResult,
   type RunResult,
+  type FileAccess,
+  type NewUser,
 } from "./operations.js";

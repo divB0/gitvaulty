@@ -18,21 +18,26 @@ import { ensureInitialized, ensureParent, findRepository } from "./repository.js
 import { currentRecipient, readIdentity } from "./key.js";
 import {
   type GitVaultyUser,
+  type SecretFileGrant,
   type Registry,
+  filesForUser,
+  normalizeFileGrant,
+  normalizeGroupName,
   normalizeGitVaultyUser,
+  normalizeRegistry,
   normalizeSecretFile,
   readRegistry,
   recipientsFor,
+  usernamesFor,
   writeRegistry,
 } from "./registry.js";
 import {
   decryptSecretFile,
   encryptSecretFile,
-  rotateSecretFileKey,
-  updateSecretFileKeys,
 } from "./sops.js";
 import { execute, executeChecked } from "./process.js";
 import { GitVaultyError } from "./errors.js";
+import { normalizeUsername } from "./recipient.js";
 
 function portable(file: string): string { return file.split(path.sep).join("/"); }
 
@@ -136,20 +141,43 @@ async function atomicWrite(file: string, data: Buffer, mode = 0o600): Promise<vo
 
 export async function initialize(repo: Repository, user: { username: string; recipient: string }): Promise<void> {
   if (await fileExists(repo.registryFile)) throw new GitVaultyError("GitVaulty is already initialized.");
-  await writeRegistry(repo, { version: 2, users: [{ ...user, files: [] }] });
+  const owner = normalizeGitVaultyUser(user);
+  await writeRegistry(repo, {
+    version: 3,
+    defaultGroup: "team",
+    users: [owner],
+    groups: [{ name: "team", members: [owner.username] }],
+    files: [],
+  });
 }
 
-async function registerEncryptedFile(repo: Repository, encrypted: string, plaintext: Buffer): Promise<void> {
+export interface FileAccess { groups?: string[]; users?: string[] }
+
+function requestedAccess(registry: Registry, access: FileAccess = {}): Pick<SecretFileGrant, "groups" | "users"> {
+  const explicit = (access.groups?.length ?? 0) > 0 || (access.users?.length ?? 0) > 0;
+  const normalized = normalizeFileGrant({
+    path: "placeholder.gitvaulty",
+    groups: explicit ? access.groups ?? [] : [registry.defaultGroup],
+    users: access.users ?? [],
+  });
+  return { groups: normalized.groups, users: normalized.users };
+}
+
+async function registerEncryptedFile(repo: Repository, encrypted: string, plaintext: Buffer, access: FileAccess = {}): Promise<void> {
   const registry = await readRegistry(repo);
   const original = structuredClone(registry);
   const user = await registeredLocalUser(registry);
-  if (registry.users.some((candidate) => candidate.files.includes(encrypted))) {
+  if (registry.files.some((candidate) => candidate.path === encrypted)) {
     throw new GitVaultyError(`Encrypted file already exists in the registry: ${encrypted}`);
   }
-  user.files.push(encrypted);
-  await writeRegistry(repo, registry);
+  registry.files.push({ path: encrypted, ...requestedAccess(registry, access) });
+  const normalized = normalizeRegistry(registry);
+  if (!usernamesFor(normalized, encrypted).includes(user.username)) {
+    throw new GitVaultyError("Your user must have access to a file when creating or importing it.");
+  }
   const encryptedAbsolute = path.join(repo.root, ...encrypted.split("/"));
   try {
+    await writeRegistry(repo, registry);
     const ciphertext = await encryptSecretFile(repo, encrypted, plaintext, recipientsFor(registry, encrypted));
     await assertNoSymlinkComponents(repo, encryptedAbsolute, false);
     await ensureParent(encryptedAbsolute);
@@ -190,7 +218,7 @@ async function replaceEncryptedFile(
 
 export interface CreatedSecretFile { file: string }
 
-export async function createSecretFile(repo: Repository, plaintextFile: string): Promise<CreatedSecretFile> {
+export async function createSecretFile(repo: Repository, plaintextFile: string, access: FileAccess = {}): Promise<CreatedSecretFile> {
   await ensureInitialized(repo);
   const logical = logicalRelative(repo, plaintextFile);
   const plaintextAbsolute = path.join(repo.root, ...logical.split("/"));
@@ -200,14 +228,14 @@ export async function createSecretFile(repo: Repository, plaintextFile: string):
   await assertNoSymlinkComponents(repo, encryptedAbsolute, true);
   if (await fileExists(plaintextAbsolute)) throw new GitVaultyError(`Plaintext file already exists; use \`gitvaulty import ${logical}\` instead.`);
   if (await fileExists(encryptedAbsolute)) throw new GitVaultyError(`Encrypted file already exists: ${encrypted}`);
-  await registerEncryptedFile(repo, encrypted, Buffer.alloc(0));
+  await registerEncryptedFile(repo, encrypted, Buffer.alloc(0), access);
   await exclude(repo, plaintextAbsolute);
   return { file: logical };
 }
 
 export interface ImportedSecretFile { file: string; bytes: number }
 
-export async function importSecretFile(repo: Repository, plaintextFile: string): Promise<ImportedSecretFile> {
+export async function importSecretFile(repo: Repository, plaintextFile: string, access: FileAccess = {}): Promise<ImportedSecretFile> {
   await ensureInitialized(repo);
   const logical = logicalRelative(repo, plaintextFile);
   const plaintextAbsolute = path.join(repo.root, ...logical.split("/"));
@@ -225,7 +253,7 @@ export async function importSecretFile(repo: Repository, plaintextFile: string):
   if (await isTracked(repo, logical)) throw new GitVaultyError(`Git-tracked plaintext cannot be imported safely: ${logical}`);
   if (await fileExists(encryptedAbsolute)) throw new GitVaultyError(`Encrypted file already exists: ${encrypted}`);
   const plaintext = await readFile(plaintextAbsolute);
-  await registerEncryptedFile(repo, encrypted, plaintext);
+  await registerEncryptedFile(repo, encrypted, plaintext, access);
   await exclude(repo, plaintextAbsolute);
   await chmod(plaintextAbsolute, 0o600);
   return { file: logical, bytes: plaintext.length };
@@ -267,7 +295,7 @@ async function authorizedFile(repo: Repository, plaintextFile: string): Promise<
   const encrypted = `${logical}.gitvaulty`;
   const registry = await readRegistry(repo);
   const user = await registeredLocalUser(registry);
-  if (!user.files.includes(encrypted)) throw new GitVaultyError(`Your key is not authorized for ${logical}.`);
+  if (!filesForUser(registry, user.username).includes(encrypted)) throw new GitVaultyError(`Your key is not authorized for ${logical}.`);
   const encryptedAbsolute = path.join(repo.root, ...encrypted.split("/"));
   await assertNoSymlinkComponents(repo, encryptedAbsolute, true);
   const stats = await lstat(encryptedAbsolute).catch(() => { throw new GitVaultyError(`Encrypted file does not exist: ${encrypted}`); });
@@ -319,49 +347,126 @@ export async function editSecretFile(
   }
 }
 
-export async function addUser(repo: Repository, user: GitVaultyUser): Promise<void> {
+export interface NewUser extends GitVaultyUser { groups?: string[] }
+
+function sameValues(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+async function mutateAccess(repo: Repository, mutate: (registry: Registry) => void): Promise<void> {
   await ensureInitialized(repo);
-  const registry = await readRegistry(repo);
-  const added = normalizeGitVaultyUser(user);
-  if (registry.users.some((item) => item.username === added.username || item.recipient === added.recipient)) {
-    throw new GitVaultyError("That username or recipient already exists.");
+  const original = await readRegistry(repo);
+  const next = structuredClone(original);
+  mutate(next);
+  const normalized = normalizeRegistry(next);
+  const paths = [...new Set([...original.files.map((file) => file.path), ...normalized.files.map((file) => file.path)])].sort();
+  const changed = paths.filter((file) => !sameValues(recipientsFor(original, file), recipientsFor(normalized, file)));
+  const local = await registeredLocalUser(original);
+  if (!normalized.users.some((user) => user.recipient === local.recipient)) {
+    throw new GitVaultyError("You cannot remove your own user.");
   }
-  const known = new Set(registry.users.flatMap((item) => item.files));
-  for (const file of added.files) if (!known.has(file)) throw new GitVaultyError(`Unknown encrypted file: ${file}`);
+  for (const file of changed) {
+    if (original.files.some((candidate) => candidate.path === file) && !usernamesFor(normalized, file).includes(local.username)) {
+      throw new GitVaultyError(`You cannot remove your own access from ${file.slice(0, -".gitvaulty".length)}.`);
+    }
+  }
+
   const snapshots = new Map<string, Buffer>();
-  for (const file of added.files) snapshots.set(file, await readFile(path.join(repo.root, ...file.split("/"))));
-  registry.users.push(added);
-  await writeRegistry(repo, registry);
+  const plaintext = new Map<string, Buffer>();
+  for (const file of changed) {
+    if (!original.files.some((candidate) => candidate.path === file)) continue;
+    const absolute = path.join(repo.root, ...file.split("/"));
+    snapshots.set(file, await readFile(absolute));
+    plaintext.set(file, await decryptSecretFile(repo, absolute));
+  }
   try {
-    for (const file of added.files) await updateSecretFileKeys(repo, path.join(repo.root, ...file.split("/")));
+    await writeRegistry(repo, normalized);
+    for (const [file, contents] of plaintext) {
+      await replaceEncryptedFile(repo, file, path.join(repo.root, ...file.split("/")), contents);
+    }
   } catch (error) {
-    for (const [file, contents] of snapshots) await writeFile(path.join(repo.root, ...file.split("/")), contents);
-    registry.users = registry.users.filter((item) => item.username !== added.username);
-    await writeRegistry(repo, registry);
+    for (const [file, contents] of snapshots) await atomicWrite(path.join(repo.root, ...file.split("/")), contents);
+    await writeRegistry(repo, original);
     throw error;
   }
 }
 
+export async function addUser(repo: Repository, user: NewUser): Promise<void> {
+  const added = normalizeGitVaultyUser(user);
+  await mutateAccess(repo, (registry) => {
+    if (registry.users.some((item) => item.username === added.username || item.recipient === added.recipient)) {
+      throw new GitVaultyError("That username or recipient already exists.");
+    }
+    const groups = (user.groups?.length ? user.groups : [registry.defaultGroup]).map(normalizeGroupName);
+    for (const name of groups) if (!registry.groups.some((group) => group.name === name)) throw new GitVaultyError(`Unknown group: ${name}`);
+    registry.users.push(added);
+    for (const group of registry.groups) if (groups.includes(group.name)) group.members.push(added.username);
+  });
+}
+
 export async function removeUser(repo: Repository, username: string): Promise<void> {
-  await ensureInitialized(repo);
-  const registry = await readRegistry(repo);
-  const user = registry.users.find((item) => item.username === username);
-  if (!user) throw new GitVaultyError(`Unknown user: ${username}`);
-  for (const file of user.files) {
-    if (recipientsFor(registry, file).length < 2) throw new GitVaultyError(`Cannot remove the last recipient from ${file}.`);
-  }
-  const original = structuredClone(registry);
-  const snapshots = new Map<string, Buffer>();
-  for (const file of user.files) snapshots.set(file, await readFile(path.join(repo.root, ...file.split("/"))));
-  registry.users = registry.users.filter((item) => item.username !== username);
-  await writeRegistry(repo, registry);
-  try {
-    for (const file of user.files) await rotateSecretFileKey(repo, path.join(repo.root, ...file.split("/")), user.recipient);
-  } catch (error) {
-    for (const [file, contents] of snapshots) await writeFile(path.join(repo.root, ...file.split("/")), contents);
-    await writeRegistry(repo, original);
-    throw error;
-  }
+  const normalized = normalizeUsername(username);
+  const existing = await readRegistry(repo);
+  const removed = existing.users.find((user) => user.username === normalized);
+  if (!removed) throw new GitVaultyError(`Unknown user: ${normalized}`);
+  if (removed.recipient === await currentRecipient()) throw new GitVaultyError("You cannot remove your own user.");
+  await mutateAccess(repo, (registry) => {
+    registry.users = registry.users.filter((item) => item.username !== normalized);
+    for (const group of registry.groups) group.members = group.members.filter((member) => member !== normalized);
+    for (const file of registry.files) file.users = file.users.filter((member) => member !== normalized);
+  });
+}
+
+export async function createGroup(repo: Repository, name: string): Promise<void> {
+  const normalized = normalizeGroupName(name);
+  await mutateAccess(repo, (registry) => {
+    if (registry.groups.some((group) => group.name === normalized)) throw new GitVaultyError(`Group already exists: ${normalized}`);
+    registry.groups.push({ name: normalized, members: [] });
+  });
+}
+
+export async function deleteGroup(repo: Repository, name: string): Promise<void> {
+  const normalized = normalizeGroupName(name);
+  await mutateAccess(repo, (registry) => {
+    if (registry.defaultGroup === normalized) throw new GitVaultyError(`Cannot delete the default group: ${normalized}`);
+    if (!registry.groups.some((group) => group.name === normalized)) throw new GitVaultyError(`Unknown group: ${normalized}`);
+    const usedBy = registry.files.filter((file) => file.groups.includes(normalized)).map((file) => file.path);
+    if (usedBy.length > 0) throw new GitVaultyError(`Group ${normalized} is still used by: ${usedBy.join(", ")}`);
+    registry.groups = registry.groups.filter((group) => group.name !== normalized);
+  });
+}
+
+export async function addGroupMember(repo: Repository, name: string, username: string): Promise<void> {
+  const groupName = normalizeGroupName(name);
+  const member = normalizeUsername(username);
+  await mutateAccess(repo, (registry) => {
+    const group = registry.groups.find((candidate) => candidate.name === groupName);
+    if (!group) throw new GitVaultyError(`Unknown group: ${groupName}`);
+    if (!registry.users.some((user) => user.username === member)) throw new GitVaultyError(`Unknown user: ${member}`);
+    if (group.members.includes(member)) throw new GitVaultyError(`${member} is already in ${groupName}.`);
+    group.members.push(member);
+  });
+}
+
+export async function removeGroupMember(repo: Repository, name: string, username: string): Promise<void> {
+  const groupName = normalizeGroupName(name);
+  const member = normalizeUsername(username);
+  await mutateAccess(repo, (registry) => {
+    const group = registry.groups.find((candidate) => candidate.name === groupName);
+    if (!group) throw new GitVaultyError(`Unknown group: ${groupName}`);
+    if (!group.members.includes(member)) throw new GitVaultyError(`${member} is not in ${groupName}.`);
+    group.members = group.members.filter((candidate) => candidate !== member);
+  });
+}
+
+export async function setFileAccess(repo: Repository, plaintextFile: string, access: Required<FileAccess>): Promise<SecretFileGrant> {
+  const encrypted = encryptedRelative(repo, plaintextFile);
+  await mutateAccess(repo, (registry) => {
+    const index = registry.files.findIndex((file) => file.path === encrypted);
+    if (index < 0) throw new GitVaultyError(`Unknown encrypted file: ${encrypted}`);
+    registry.files[index] = normalizeFileGrant({ path: encrypted, groups: access.groups, users: access.users });
+  });
+  return (await readRegistry(repo)).files.find((file) => file.path === encrypted)!;
 }
 
 export type FileState = "missing" | "current" | "modified" | "tracked" | "unsafe";
@@ -378,11 +483,12 @@ function digest(value: Buffer): string { return createHash("sha256").update(valu
 async function selectedEncryptedFiles(repo: Repository, plaintextFiles: string[]): Promise<string[]> {
   const registry = await readRegistry(repo);
   const user = await registeredLocalUser(registry);
-  if (plaintextFiles.length === 0) return [...user.files].sort();
+  const accessible = filesForUser(registry, user.username);
+  if (plaintextFiles.length === 0) return accessible;
   const selected = plaintextFiles.map((file) => encryptedRelative(repo, file));
   const unique = [...new Set(selected)];
   if (unique.length !== selected.length) throw new GitVaultyError("A file was selected more than once.");
-  for (const file of unique) if (!user.files.includes(file)) throw new GitVaultyError(`Your key is not authorized for ${file.slice(0, -".gitvaulty".length)}.`);
+  for (const file of unique) if (!accessible.includes(file)) throw new GitVaultyError(`Your key is not authorized for ${file.slice(0, -".gitvaulty".length)}.`);
   return unique;
 }
 

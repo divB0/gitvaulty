@@ -12,8 +12,8 @@ GitVaulty encrypts complete files with SOPS and age so they can live safely in G
 contents, comments, formatting, and file types are preserved when decrypted; the committed
 `*.gitvaulty` file reveals none of the plaintext structure.
 
-Access is granted independently per file, and every person keeps their own private age identity.
-There is no shared team decryption key.
+Access is assigned to groups per file, with direct user grants available for exceptions. Every
+person keeps their own private age identity; there is no shared team decryption key.
 
 GitVaulty is available on [npm](https://www.npmjs.com/package/gitvaulty) and requires Node.js 20 or
 newer.
@@ -25,6 +25,9 @@ Initialize GitVaulty in a Git repository:
 ```sh
 npx gitvaulty init
 ```
+
+Initialization creates a `team` group containing you. New and imported files use `team` by default,
+so the normal workflow needs no access flags.
 
 ### Migrate an existing file
 
@@ -54,6 +57,16 @@ GitVaulty creates `config/secrets.yaml.gitvaulty` and opens a temporary plaintex
 markers and no values to label as secrets. The entire file is encrypted when the editor closes.
 
 `create` never imports an existing file. Use `import` explicitly for migration.
+
+Choose a narrower group while creating or importing when needed:
+
+```sh
+npx gitvaulty create .env.production --group production
+npx gitvaulty import service-account.json --group platform --user alice
+```
+
+`--group` and `--user` may be repeated. Direct users are intended for exceptions; groups are the
+primary access model.
 
 ## Edit
 
@@ -179,7 +192,7 @@ Because the complete byte stream is opaque, Git does not reveal keys or document
 tradeoff is that Git cannot merge concurrent edits to the same encrypted file meaningfully; keep
 files small and split unrelated secrets into separate files when different people edit them.
 
-## Keys and file access
+## Keys, users, and groups
 
 ```sh
 npx gitvaulty key create
@@ -189,14 +202,36 @@ npx gitvaulty key restore
 npx gitvaulty user add
 npx gitvaulty user list
 npx gitvaulty user remove
+npx gitvaulty group create production
+npx gitvaulty group add production alice
+npx gitvaulty group remove production alice
+npx gitvaulty group list
+npx gitvaulty group delete production
 ```
 
 The global age identity normally lives at `~/.config/gitvaulty/identity.txt`. Back it up once with
 `gitvaulty key backup`; the same identity works across GitVaulty repositories.
 
 A new developer runs `gitvaulty key public` and sends the resulting public `age1...` recipient to
-an existing user. `user add` asks which plaintext paths they may access. Private keys are never
-shared.
+an existing user. `user add` asks which groups they should join, with `team` selected by default.
+Private keys are never shared.
+
+Change the policy of an existing file with one interactive command:
+
+```sh
+npx gitvaulty access .env.production
+```
+
+GitVaulty shows group grants first and direct-user exceptions second. For automation, set the exact
+policy with repeatable flags:
+
+```sh
+npx gitvaulty access .env.production --group production --group platform --user alice
+```
+
+Adding or removing a group member automatically re-encrypts every affected file for its new exact
+recipient set. A group cannot be deleted while a file uses it, and the default `team` group cannot
+be deleted.
 
 Removing a user rotates every affected file's data key and removes that recipient. It cannot erase
 Git history or plaintext the user previously copied, so rotate external credentials after
@@ -222,7 +257,7 @@ Then use `npx gitvaulty` as shown above or add shorter package scripts.
 ## Repository layout
 
 ```text
-.gitvaulty/recipients.json                    # public users and per-file access
+.gitvaulty/recipients.json                    # public users, groups, and per-file access
 .sops.yaml                                    # generated public SOPS rules
 .env.gitvaulty                                # opaque encrypted .env bytes
 terraform/prod.tfvars.json.gitvaulty          # opaque encrypted Terraform bytes

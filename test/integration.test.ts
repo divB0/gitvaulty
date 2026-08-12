@@ -5,18 +5,24 @@ import { generateIdentity, identityToRecipient } from "age-encryption";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createIdentity } from "../src/key.js";
 import {
+  addGroupMember,
   addUser,
   cleanSecretFiles,
+  createGroup,
+  deleteGroup,
   importSecretFile,
   initialize,
   materializeSecretFiles,
+  removeGroupMember,
   removeUser,
   runWithFiles,
+  setFileAccess,
   statusSecretFiles,
 } from "../src/operations.js";
 import { executeChecked } from "../src/process.js";
 import { readRegistry, recipientsFor } from "../src/registry.js";
 import { findRepository, type Repository } from "../src/repository.js";
+import { decryptSecretFile } from "../src/sops.js";
 
 describe("GitVaulty hybrid native-file workflow", () => {
   let root: string;
@@ -128,12 +134,62 @@ describe("GitVaulty hybrid native-file workflow", () => {
     await writeFile(path.join(root, "secrets.txt"), "username=admin\npassword=secret\n");
     await importSecretFile(repo, "secrets.txt");
     const teammateRecipient = await identityToRecipient(await generateIdentity());
-    await addUser(repo, { username: "teammate", recipient: teammateRecipient, files: ["secrets.txt.gitvaulty"] });
+    await addUser(repo, { username: "teammate", recipient: teammateRecipient, groups: ["team"] });
     expect(recipientsFor(await readRegistry(repo), "secrets.txt.gitvaulty")).toHaveLength(2);
     await removeUser(repo, "teammate");
     expect(recipientsFor(await readRegistry(repo), "secrets.txt.gitvaulty")).toHaveLength(1);
     await cleanSecretFiles(repo);
     await materializeSecretFiles(repo);
     expect(await readFile(path.join(root, "secrets.txt"), "utf8")).toBe("username=admin\npassword=secret\n");
+  }, 30_000);
+
+  it("uses groups for onboarding and re-encrypts files when membership changes", async () => {
+    await createGroup(repo, "production");
+    await addGroupMember(repo, "production", "owner");
+    await writeFile(path.join(root, "prod.env"), "TOKEN=production\n");
+    await importSecretFile(repo, "prod.env", { groups: ["production"] });
+
+    const teammate = await generateIdentity();
+    const teammateRecipient = await identityToRecipient(teammate);
+    await addUser(repo, { username: "teammate", recipient: teammateRecipient, groups: ["production"] });
+    expect(recipientsFor(await readRegistry(repo), "prod.env.gitvaulty")).toEqual([
+      teammateRecipient,
+      (await readRegistry(repo)).users.find((user) => user.username === "owner")!.recipient,
+    ].sort());
+    process.env.GITVAULTY_KEY = teammate;
+    expect(await decryptSecretFile(repo, path.join(root, "prod.env.gitvaulty"))).toEqual(Buffer.from("TOKEN=production\n"));
+    process.env.GITVAULTY_KEY = ownerIdentity;
+
+    await removeGroupMember(repo, "production", "teammate");
+    expect(recipientsFor(await readRegistry(repo), "prod.env.gitvaulty")).toHaveLength(1);
+    process.env.GITVAULTY_KEY = teammate;
+    await expect(decryptSecretFile(repo, path.join(root, "prod.env.gitvaulty"))).rejects.toThrow();
+    process.env.GITVAULTY_KEY = ownerIdentity;
+    await expect(deleteGroup(repo, "production")).rejects.toThrow("still used by");
+    await expect(deleteGroup(repo, "team")).rejects.toThrow("default group");
+
+    await setFileAccess(repo, "prod.env", { groups: ["team"], users: [] });
+    await deleteGroup(repo, "production");
+    expect((await readRegistry(repo)).groups.map((group) => group.name)).toEqual(["team"]);
+    expect(await readFile(path.join(root, "prod.env"), "utf8")).toBe("TOKEN=production\n");
+  }, 30_000);
+
+  it("supports direct grants and prevents policies that remove the final recipient", async () => {
+    await writeFile(path.join(root, "direct.txt"), "direct secret\n");
+    await importSecretFile(repo, "direct.txt");
+    const teammateRecipient = await identityToRecipient(await generateIdentity());
+    await addUser(repo, { username: "teammate", recipient: teammateRecipient, groups: ["team"] });
+
+    await setFileAccess(repo, "direct.txt", { groups: [], users: ["owner", "teammate"] });
+    expect((await readRegistry(repo)).files[0]).toEqual({
+      path: "direct.txt.gitvaulty",
+      groups: [],
+      users: ["owner", "teammate"],
+    });
+    await removeUser(repo, "teammate");
+    expect((await readRegistry(repo)).files[0]!.users).toEqual(["owner"]);
+    await expect(removeUser(repo, "owner")).rejects.toThrow("own user");
+    await expect(setFileAccess(repo, "direct.txt", { groups: [], users: [] })).rejects.toThrow("at least one recipient");
+    expect(await readFile(path.join(root, "direct.txt"), "utf8")).toBe("direct secret\n");
   }, 30_000);
 });

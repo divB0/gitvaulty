@@ -45,9 +45,20 @@ describe("opaque native secret files", () => {
     const encrypted = path.join(root, "secrets", "custom.bin.gitvaulty");
     expect(await decryptSecretFile(repo, encrypted)).toEqual(Buffer.alloc(0));
     expect((await stat(encrypted)).mode & 0o777).toBe(0o600);
-    expect((await readRegistry(repo)).users[0]!.files).toEqual(["secrets/custom.bin.gitvaulty"]);
+    expect(await readRegistry(repo)).toMatchObject({
+      version: 3,
+      defaultGroup: "team",
+      users: [{ username: "owner" }],
+      groups: [{ name: "team", members: ["owner"] }],
+      files: [{ path: "secrets/custom.bin.gitvaulty", groups: ["team"], users: [] }],
+    });
     await writeFile(path.join(root, ".env"), "TOKEN=secret\n");
     await expect(createSecretFile(repo, ".env")).rejects.toThrow("use `gitvaulty import .env`");
+  });
+
+  it("requires the creator to belong to an explicit file policy", async () => {
+    await expect(createSecretFile(repo, "private.txt", { groups: [], users: ["missing"] })).rejects.toThrow("Unknown user");
+    await expect(createSecretFile(repo, "private.txt", { groups: [], users: [] })).resolves.toEqual({ file: "private.txt" });
   });
 
   it("imports and verifies exact arbitrary bytes without deleting plaintext", async () => {

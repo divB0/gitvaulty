@@ -1,24 +1,36 @@
 #!/usr/bin/env node
 import { checkbox, confirm, input, password, select } from "@inquirer/prompts";
 import { Command } from "commander";
+import path from "node:path";
 import { executeChecked } from "./process.js";
 import { findRepository } from "./repository.js";
 import { createIdentity, currentRecipient, identityFile, readIdentity, restoreIdentity } from "./key.js";
 import {
+  addGroupMember,
   addUser,
   cleanSecretFiles,
+  createGroup,
   createSecretFile,
+  deleteGroup,
   editSecretFile,
+  encryptedFileFor,
   importSecretFile,
   initialize,
   materializeSecretFiles,
+  removeGroupMember,
   removeUser,
   runWithFiles,
+  setFileAccess,
   statusSecretFiles,
   updateSecretFile,
 } from "./operations.js";
 import { normalizeUsername, parseRecipient } from "./recipient.js";
-import { readRegistry, type GitVaultyUser } from "./registry.js";
+import {
+  normalizeGroupName,
+  readRegistry,
+  usernamesFor,
+  type Registry,
+} from "./registry.js";
 import { GitVaultyError } from "./errors.js";
 
 async function localUsername(root: string): Promise<string> {
@@ -31,12 +43,26 @@ async function localUsername(root: string): Promise<string> {
   return "";
 }
 
-export function formatUsers(users: GitVaultyUser[]): string {
-  if (users.length === 0) return "No users.\n";
-  const rows = users
-    .map((user) => [user.username, [...user.files].sort().map((file) => file.slice(0, -".gitvaulty".length)).join(", ")])
+export function formatUsers(registry: Registry): string {
+  if (registry.users.length === 0) return "No users.\n";
+  const rows = registry.users
+    .map((user) => [
+      user.username,
+      registry.groups.filter((group) => group.members.includes(user.username)).map((group) => group.name).sort().join(", ") || "—",
+    ])
     .sort((left, right) => left[0]!.localeCompare(right[0]!));
-  const allRows = [["USERNAME", "FILES"], ...rows];
+  const allRows = [["USERNAME", "GROUPS"], ...rows];
+  const width = Math.max(...allRows.map((row) => row[0]!.length));
+  return `${allRows.map((row) => `${row[0]!.padEnd(width)}  ${row[1]!}`).join("\n")}\n`;
+}
+
+export function formatGroups(registry: Registry): string {
+  if (registry.groups.length === 0) return "No groups.\n";
+  const rows = registry.groups.map((group) => [
+    group.name === registry.defaultGroup ? `${group.name} (default)` : group.name,
+    group.members.join(", ") || "—",
+  ]);
+  const allRows = [["GROUP", "MEMBERS"], ...rows];
   const width = Math.max(...allRows.map((row) => row[0]!.length));
   return `${allRows.map((row) => `${row[0]!.padEnd(width)}  ${row[1]!}`).join("\n")}\n`;
 }
@@ -59,6 +85,17 @@ async function ensureCliIdentity(): Promise<string> {
 
 function collect(value: string, previous: string[]): string[] { return [...previous, value]; }
 
+function addAccessOptions(command: Command): Command {
+  return command
+    .option("-g, --group <name>", "group access; repeat for more groups", collect, [])
+    .option("-u, --user <username>", "direct user access; repeat for more users", collect, []);
+}
+
+function accessOptions(command: Command): { groups: string[]; users: string[] } {
+  const options = command.opts<{ group: string[]; user: string[] }>();
+  return { groups: options.group, users: options.user };
+}
+
 export function createProgram(): Command {
   const program = new Command().name("gitvaulty").description("Git-backed secrets for humans.").version("0.1.0").enablePositionalOptions();
 
@@ -73,24 +110,51 @@ export function createProgram(): Command {
     process.stdout.write("GitVaulty initialized.\n");
   });
 
-  program.command("create <path>").description("Create an encrypted native file").action(async (requested: string) => {
+  addAccessOptions(program.command("create <path>").description("Create an encrypted native file")).action(async (requested: string, action: Command) => {
     await ensureCliIdentity();
     const repo = await findRepository();
-    const created = await createSecretFile(repo, requested);
+    const created = await createSecretFile(repo, requested, accessOptions(action));
     await editSecretFile(repo, created.file);
     process.stdout.write(`Created ${created.file}.gitvaulty.\n`);
   });
 
-  program.command("import <path>")
+  addAccessOptions(program.command("import <path>")
     .description("Import an existing plaintext file without removing it")
-    .option("--update", "replace an existing encrypted file with the current plaintext")
+    .option("--update", "replace an existing encrypted file with the current plaintext"))
     .action(async (requested: string, action: Command) => {
     await ensureCliIdentity();
     const repo = await findRepository();
-    const imported = action.opts<{ update?: boolean }>().update
-      ? await updateSecretFile(repo, requested)
-      : await importSecretFile(repo, requested);
+    const options = action.opts<{ update?: boolean; group: string[]; user: string[] }>();
+    if (options.update && (options.group.length > 0 || options.user.length > 0)) {
+      throw new GitVaultyError("Use `gitvaulty access <path>` to change access for an existing file.");
+    }
+    const imported = options.update ? await updateSecretFile(repo, requested) : await importSecretFile(repo, requested, accessOptions(action));
     process.stdout.write(`${action.opts<{ update?: boolean }>().update ? "Updated" : "Imported"} and verified ${imported.file} (${imported.bytes} bytes).\n`);
+  });
+
+  addAccessOptions(program.command("access <path>").description("Change who can access an encrypted file")).action(async (requested: string, action: Command) => {
+    await ensureCliIdentity();
+    const repo = await findRepository();
+    const registry = await readRegistry(repo);
+    const provided = accessOptions(action);
+    let groups = provided.groups;
+    let users = provided.users;
+    if (groups.length === 0 && users.length === 0) {
+      const encrypted = path.relative(repo.root, encryptedFileFor(repo, requested)).split(path.sep).join("/");
+      const current = registry.files.find((file) => file.path === encrypted);
+      if (!current) throw new GitVaultyError(`Unknown encrypted file: ${encrypted}`);
+      groups = await checkbox({
+        message: "Groups with access",
+        choices: registry.groups.map((group) => ({ name: group.name, value: group.name, checked: current.groups.includes(group.name) })),
+      });
+      users = await checkbox({
+        message: "Direct user access (exceptions)",
+        choices: registry.users.map((user) => ({ name: user.username, value: user.username, checked: current.users.includes(user.username) })),
+      });
+    }
+    const grant = await setFileAccess(repo, requested, { groups, users });
+    const updated = await readRegistry(repo);
+    process.stdout.write(`Updated access for ${requested}: ${usernamesFor(updated, grant.path).join(", ")}.\n`);
   });
 
   program.command("edit <path>").description("Edit an encrypted file by its plaintext path").action(async (file: string) => {
@@ -172,13 +236,11 @@ export function createProgram(): Command {
     process.stdout.write(`Restored global key for ${result.recipient}.\n`);
   });
 
-  const user = program.command("user").description("Manage file access");
-  user.command("add").description("Grant a user access to encrypted files").action(async () => {
+  const user = program.command("user").description("Manage users");
+  user.command("add").description("Add a user to groups").action(async () => {
     await ensureCliIdentity();
     const repo = await findRepository();
     const registry = await readRegistry(repo);
-    const files = [...new Set(registry.users.flatMap((item) => item.files))].sort();
-    if (files.length === 0) throw new GitVaultyError("Create an encrypted file before adding another user.");
     const publicKey = await input({ message: "Public age recipient", validate: (value) => {
       try { parseRecipient(value); return true; }
       catch (error) { return (error as Error).message; }
@@ -189,16 +251,16 @@ export function createProgram(): Command {
       catch (error) { return (error as Error).message; }
     } });
     const selected = await checkbox({
-      message: "File access",
-      choices: files.map((file) => ({ name: file.slice(0, -".gitvaulty".length), value: file })),
+      message: "Groups",
+      choices: registry.groups.map((group) => ({ name: group.name, value: group.name, checked: group.name === registry.defaultGroup })),
       required: true,
     });
     const normalizedUsername = normalizeUsername(username);
-    await addUser(repo, { username: normalizedUsername, recipient, files: selected });
+    await addUser(repo, { username: normalizedUsername, recipient, groups: selected });
     process.stdout.write(`Added ${normalizedUsername}.\n`);
   });
-  user.command("list").description("List users and file access").action(async () => {
-    process.stdout.write(formatUsers((await readRegistry(await findRepository())).users));
+  user.command("list").description("List users and groups").action(async () => {
+    process.stdout.write(formatUsers(await readRegistry(await findRepository())));
   });
   user.command("remove").description("Remove a user's file access").action(async () => {
     await ensureCliIdentity();
@@ -211,6 +273,32 @@ export function createProgram(): Command {
     if (!await confirm({ message: `Remove ${username} and rotate affected file keys?`, default: false })) return;
     await removeUser(repo, username);
     process.stdout.write(`Removed ${username}. Rotate external provider credentials they knew.\n`);
+  });
+
+  const group = program.command("group").description("Manage access groups");
+  group.command("create <name>").description("Create a group").action(async (name: string) => {
+    await ensureCliIdentity();
+    const normalized = normalizeGroupName(name);
+    await createGroup(await findRepository(), normalized);
+    process.stdout.write(`Created group ${normalized}.\n`);
+  });
+  group.command("add <group> <username>").description("Add a user to a group").action(async (name: string, username: string) => {
+    await ensureCliIdentity();
+    await addGroupMember(await findRepository(), name, username);
+    process.stdout.write(`Added ${normalizeUsername(username)} to ${normalizeGroupName(name)}.\n`);
+  });
+  group.command("remove <group> <username>").description("Remove a user from a group and rotate affected files").action(async (name: string, username: string) => {
+    await ensureCliIdentity();
+    await removeGroupMember(await findRepository(), name, username);
+    process.stdout.write(`Removed ${normalizeUsername(username)} from ${normalizeGroupName(name)}.\n`);
+  });
+  group.command("list").description("List groups and members").action(async () => {
+    process.stdout.write(formatGroups(await readRegistry(await findRepository())));
+  });
+  group.command("delete <name>").description("Delete an unused group").action(async (name: string) => {
+    await ensureCliIdentity();
+    await deleteGroup(await findRepository(), name);
+    process.stdout.write(`Deleted group ${normalizeGroupName(name)}.\n`);
   });
   return program;
 }
