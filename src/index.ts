@@ -1,4 +1,4 @@
-export { GitVaultyError } from "./errors.js";
+export { GitVaultyError, TrackedPlaintextError } from "./errors.js";
 export { normalizeUsername, parseRecipient } from "./recipient.js";
 export { findRepository, type Repository } from "./repository.js";
 export {

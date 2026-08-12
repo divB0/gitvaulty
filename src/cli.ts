@@ -3,7 +3,7 @@ import { checkbox, confirm, input, password, select } from "@inquirer/prompts";
 import { Command } from "commander";
 import path from "node:path";
 import { executeChecked } from "./process.js";
-import { findRepository } from "./repository.js";
+import { findRepository, type Repository } from "./repository.js";
 import { createIdentity, currentRecipient, identityFile, readIdentity, restoreIdentity } from "./key.js";
 import {
   addGroupMember,
@@ -22,7 +22,10 @@ import {
   runWithFiles,
   setFileAccess,
   statusSecretFiles,
+  stopTrackingPlaintext,
   updateSecretFile,
+  type FileAccess,
+  type ImportedSecretFile,
 } from "./operations.js";
 import { normalizeUsername, parseRecipient } from "./recipient.js";
 import {
@@ -31,7 +34,7 @@ import {
   usernamesFor,
   type Registry,
 } from "./registry.js";
-import { GitVaultyError } from "./errors.js";
+import { GitVaultyError, TrackedPlaintextError } from "./errors.js";
 import { cleanupAbandonedEditDirectories } from "./edit-temp.js";
 
 async function localUsername(root: string): Promise<string> {
@@ -97,6 +100,38 @@ function accessOptions(command: Command): { groups: string[]; users: string[] } 
   return { groups: options.group, users: options.user };
 }
 
+type ConfirmTrackedImport = (options: { message: string; default: boolean }) => Promise<boolean>;
+
+export async function importWithTrackedPrompt(
+  repo: Repository,
+  requested: string,
+  access: FileAccess,
+  update = false,
+  confirmTracked: ConfirmTrackedImport = confirm,
+): Promise<ImportedSecretFile | undefined> {
+  const performImport = (): Promise<ImportedSecretFile> => update
+    ? updateSecretFile(repo, requested)
+    : importSecretFile(repo, requested, access);
+  try { return await performImport(); }
+  catch (error) {
+    if (!(error instanceof TrackedPlaintextError)) throw error;
+    process.stderr.write(
+      `${error.file} is tracked by Git and may already exist in Git history.\n`
+      + "Rotate any exposed credentials even if you continue.\n",
+    );
+    if (!await confirmTracked({
+      message: `Stop tracking ${error.file} and continue importing?`,
+      default: false,
+    })) {
+      process.stderr.write("Import canceled.\n");
+      return undefined;
+    }
+    await stopTrackingPlaintext(repo, error.file);
+    process.stderr.write(`Removed ${error.file} from Git's index; the local file was preserved.\n`);
+    return performImport();
+  }
+}
+
 export function createProgram(): Command {
   const program = new Command().name("gitvaulty").description("Git-backed secrets for humans.").version("0.1.0").enablePositionalOptions();
 
@@ -129,7 +164,8 @@ export function createProgram(): Command {
     if (options.update && (options.group.length > 0 || options.user.length > 0)) {
       throw new GitVaultyError("Use `gitvaulty access <path>` to change access for an existing file.");
     }
-    const imported = options.update ? await updateSecretFile(repo, requested) : await importSecretFile(repo, requested, accessOptions(action));
+    const imported = await importWithTrackedPrompt(repo, requested, accessOptions(action), options.update);
+    if (!imported) return;
     process.stdout.write(`${action.opts<{ update?: boolean }>().update ? "Updated" : "Imported"} and verified ${imported.file} (${imported.bytes} bytes).\n`);
   });
 

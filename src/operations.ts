@@ -234,6 +234,15 @@ export async function createSecretFile(repo: Repository, plaintextFile: string, 
 
 export interface ImportedSecretFile { file: string; bytes: number }
 
+export async function stopTrackingPlaintext(repo: Repository, plaintextFile: string): Promise<string> {
+  await ensureInitialized(repo);
+  const logical = logicalRelative(repo, plaintextFile);
+  const plaintextAbsolute = path.join(repo.root, ...logical.split("/"));
+  await exclude(repo, plaintextAbsolute);
+  await executeChecked("git", ["rm", "--cached", "--", logical], { cwd: repo.root });
+  return logical;
+}
+
 export async function importSecretFile(repo: Repository, plaintextFile: string, access: FileAccess = {}): Promise<ImportedSecretFile> {
   await ensureInitialized(repo);
   const logical = logicalRelative(repo, plaintextFile);

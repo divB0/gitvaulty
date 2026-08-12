@@ -1,8 +1,9 @@
 import { access, mkdtemp, readFile, stat, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { importWithTrackedPrompt } from "../src/cli.js";
 import { createIdentity } from "../src/key.js";
 import { TrackedPlaintextError } from "../src/errors.js";
 import {
@@ -98,6 +99,69 @@ describe("opaque native secret files", () => {
     await symlink(outside, path.join(root, "linked"));
     await expect(importSecretFile(repo, "linked/file.txt")).rejects.toThrow("symbolic link");
     await expect(access(path.join(outside, "file.txt.gitvaulty"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("cancels a tracked plaintext import without changing Git or creating ciphertext", async () => {
+    await writeFile(path.join(root, ".env"), "TOKEN=secret\n");
+    await executeChecked("git", ["add", ".env"], { cwd: root });
+    const warning = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    let prompt: { message: string; default: boolean } | undefined;
+    try {
+      await expect(importWithTrackedPrompt(repo, ".env", {}, false, async (options) => {
+        prompt = options;
+        return false;
+      })).resolves.toBeUndefined();
+    } finally {
+      warning.mockRestore();
+    }
+
+    expect(prompt).toEqual({ message: "Stop tracking .env and continue importing?", default: false });
+    expect((await executeChecked("git", ["ls-files", "--", ".env"], { cwd: root })).stdout).toBe(".env\n");
+    await expect(access(path.join(root, ".env.gitvaulty"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("stops tracking an accepted plaintext file and completes its verified import", async () => {
+    const plaintext = "TOKEN=secret\n";
+    await writeFile(path.join(root, ".env"), plaintext);
+    await executeChecked("git", ["add", ".env"], { cwd: root });
+    await executeChecked("git", [
+      "-c", "user.name=GitVaulty Test",
+      "-c", "user.email=gitvaulty@example.test",
+      "commit", "-q", "-m", "track plaintext",
+    ], { cwd: root });
+    const warning = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    try {
+      await expect(importWithTrackedPrompt(repo, ".env", {}, false, async () => true)).resolves.toEqual({
+        file: ".env",
+        bytes: Buffer.byteLength(plaintext),
+      });
+    } finally {
+      warning.mockRestore();
+    }
+
+    expect(await readFile(path.join(root, ".env"), "utf8")).toBe(plaintext);
+    expect(await decryptSecretFile(repo, path.join(root, ".env.gitvaulty"))).toEqual(Buffer.from(plaintext));
+    expect((await executeChecked("git", ["diff", "--cached", "--name-status", "--", ".env"], { cwd: root })).stdout).toBe("D\t.env\n");
+    expect(await readFile(repo.excludeFile, "utf8")).toContain("/.env\n");
+  });
+
+  it("offers the same tracked-file recovery when updating encrypted content", async () => {
+    await writeFile(path.join(root, ".env"), "TOKEN=old\n");
+    await importSecretFile(repo, ".env");
+    await writeFile(path.join(root, ".env"), "TOKEN=new\n");
+    await executeChecked("git", ["add", "-f", ".env"], { cwd: root });
+    const warning = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    try {
+      await expect(importWithTrackedPrompt(repo, ".env", {}, true, async () => true)).resolves.toEqual({
+        file: ".env",
+        bytes: 10,
+      });
+    } finally {
+      warning.mockRestore();
+    }
+
+    expect((await executeChecked("git", ["ls-files", "--", ".env"], { cwd: root })).stdout).toBe("");
+    expect(await decryptSecretFile(repo, path.join(root, ".env.gitvaulty"))).toEqual(Buffer.from("TOKEN=new\n"));
   });
 
   it("edits through a private plaintext file and updates an existing current materialization", async () => {
