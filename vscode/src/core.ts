@@ -1,4 +1,4 @@
-import { lstat } from "node:fs/promises";
+import { lstat, realpath } from "node:fs/promises";
 import path from "node:path";
 
 import {
@@ -19,7 +19,24 @@ async function logicalFile(source: SecretSource): Promise<{
   plaintext: string;
 }> {
   const repo = await findRepository(path.dirname(source.fsPath));
-  return { repo, plaintext: plaintextFileFor(repo, source.fsPath) };
+  const canonicalRoot = await realpath(repo.root);
+  let aliasedRoot = path.dirname(source.fsPath);
+  while (true) {
+    if (await realpath(aliasedRoot) === canonicalRoot) break;
+    const parent = path.dirname(aliasedRoot);
+    if (parent === aliasedRoot) throw new GitVaultyError(`File must be inside the repository: ${source.fsPath}`);
+    aliasedRoot = parent;
+  }
+
+  const relative = path.relative(aliasedRoot, source.fsPath);
+  const segments = relative.split(path.sep);
+  let current = aliasedRoot;
+  for (const segment of segments) {
+    current = path.join(current, segment);
+    if ((await lstat(current)).isSymbolicLink()) throw new GitVaultyError(`File path contains a symbolic link: ${relative}`);
+  }
+  const canonicalSource = path.join(canonicalRoot, ...segments);
+  return { repo, plaintext: plaintextFileFor(repo, canonicalSource) };
 }
 
 export class GitVaultyCore implements SecretDocumentCore {

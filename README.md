@@ -128,6 +128,18 @@ npx gitvaulty import --update .env
 
 The updated encrypted file is decrypted and verified before replacing the previous version.
 
+### VS Code
+
+The GitVaulty VS Code extension lets you double-click a `*.gitvaulty` file and edit its decrypted
+contents in a native text editor. The virtual document keeps the plaintext filename for syntax
+highlighting and compatible language features. Save and Auto Save re-encrypt, verify, and atomically
+replace only the ciphertext; GitVaulty does not materialize a plaintext repository file.
+
+The extension detects ciphertext changes and refuses to overwrite a newer encrypted version. Native
+editing means decrypted text is visible to VS Code, compatible extensions and language servers, and
+possibly VS Code's private Hot Exit recovery storage. Use `gitvaulty edit` when that security boundary
+is not appropriate.
+
 ## Local development
 
 Materialize every file you can access:

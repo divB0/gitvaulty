@@ -57,7 +57,9 @@
   },
   "scripts": {
     "build": "node esbuild.mjs",
+    "check": "npm run typecheck && npm test && npm run test:integration",
     "test": "vitest run",
+    "test:integration": "npm run build && node esbuild.test.mjs && node dist/test/runTest.cjs",
     "typecheck": "tsc --noEmit"
   },
   "optionalDependencies": {
@@ -70,6 +72,7 @@
   "devDependencies": {
     "@types/node": "26.2.0",
     "@types/vscode": "1.100.0",
+    "@vscode/test-electron": "3.1.0",
     "esbuild": "0.28.2",
     "typescript": "7.0.2",
     "vitest": "4.1.10"

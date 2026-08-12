@@ -8,6 +8,7 @@ await build({
   platform: "node",
   target: "node20",
   external: ["vscode"],
+  banner: { js: 'import { createRequire as __gitvaultyCreateRequire } from "node:module"; const require = __gitvaultyCreateRequire(import.meta.url);' },
   sourcemap: false,
   minify: true,
 });
