@@ -1,6 +1,12 @@
 export { GitVaultyError } from "./errors.js";
 export { normalizeUsername, parseRecipient } from "./recipient.js";
 export { findRepository, type Repository } from "./repository.js";
+export {
+  cleanupAbandonedEditDirectories,
+  DEFAULT_EDIT_TEMP_GRACE_PERIOD_MS,
+  type EditTempCleanupOptions,
+  type EditTempCleanupResult,
+} from "./edit-temp.js";
 export { createIdentity, currentRecipient, identityFile, readIdentity, readStoredIdentity, restoreIdentity, type StoredIdentity } from "./key.js";
 export {
   normalizeGitVaultyUser,

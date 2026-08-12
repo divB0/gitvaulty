@@ -1,11 +1,9 @@
 import path from "node:path";
-import os from "node:os";
 import { createHash } from "node:crypto";
 import {
   access,
   chmod,
   lstat,
-  mkdtemp,
   readFile,
   rename,
   rm,
@@ -38,6 +36,7 @@ import {
 import { execute, executeChecked } from "./process.js";
 import { GitVaultyError } from "./errors.js";
 import { normalizeUsername } from "./recipient.js";
+import { createEditTempSession } from "./edit-temp.js";
 
 function portable(file: string): string { return file.split(path.sep).join("/"); }
 
@@ -330,20 +329,18 @@ export async function editSecretFile(
     updateMaterialized = true;
   }
 
-  const directory = await mkdtemp(path.join(os.tmpdir(), "gitvaulty-edit-"));
-  await chmod(directory, 0o700);
-  const temporary = path.join(directory, path.basename(file.logical));
+  const session = await createEditTempSession(path.basename(file.logical));
   try {
-    await writeFile(temporary, original, { mode: 0o600 });
+    await writeFile(session.file, original, { mode: 0o600 });
     const editor = editorCommand(process.env);
-    await executeChecked(editor.command, [...editor.args, temporary], { cwd: repo.root, env: process.env, inherit: true });
-    const updated = await readFile(temporary);
+    await executeChecked(editor.command, [...editor.args, session.file], { cwd: repo.root, env: process.env, inherit: true });
+    const updated = await readFile(session.file);
     if (updated.equals(original)) return false;
     await replaceEncryptedFile(repo, file.encrypted, file.encryptedAbsolute, updated);
     if (updateMaterialized) await atomicWrite(plaintextAbsolute, updated);
     return true;
   } finally {
-    await rm(directory, { recursive: true, force: true });
+    await session.close();
   }
 }
 

@@ -32,6 +32,7 @@ import {
   type Registry,
 } from "./registry.js";
 import { GitVaultyError } from "./errors.js";
+import { cleanupAbandonedEditDirectories } from "./edit-temp.js";
 
 async function localUsername(root: string): Promise<string> {
   for (const key of ["user.email", "user.name"]) {
@@ -303,7 +304,14 @@ export function createProgram(): Command {
   return program;
 }
 
-export async function main(argv = process.argv): Promise<void> { await createProgram().parseAsync(argv); }
+export async function main(
+  argv = process.argv,
+  cleanup: () => Promise<unknown> = cleanupAbandonedEditDirectories,
+  program = createProgram(),
+): Promise<void> {
+  await cleanup().catch(() => undefined);
+  await program.parseAsync(argv);
+}
 
 if (import.meta.url === `file://${process.argv[1]}`) main().catch((error: unknown) => {
   process.stderr.write(`Error: ${error instanceof Error ? error.message : String(error)}\n`);

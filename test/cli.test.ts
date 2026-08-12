@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { createProgram, formatGroups, formatUsers } from "../src/cli.js";
+import { Command } from "commander";
+import { createProgram, formatGroups, formatUsers, main } from "../src/cli.js";
 import type { Registry } from "../src/registry.js";
 
 const registry: Registry = {
@@ -62,5 +63,19 @@ describe("GitVaulty CLI", () => {
       "team (default)  alice, zoe",
       "",
     ].join("\n"));
+  });
+
+  it("attempts best-effort edit cleanup before parsing the requested command", async () => {
+    const events: string[] = [];
+    const program = new Command();
+    program.exitOverride();
+    program.command("probe").action(() => { events.push("command"); });
+
+    await main(["node", "gitvaulty", "probe"], async () => {
+      events.push("cleanup");
+      throw new Error("temp directory unavailable");
+    }, program);
+
+    expect(events).toEqual(["cleanup", "command"]);
   });
 });

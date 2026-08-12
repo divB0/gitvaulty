@@ -79,6 +79,21 @@ npx gitvaulty edit config/secrets.yaml
 
 GitVaulty decrypts the file into a private temporary directory, opens the normal filename for
 editor syntax highlighting, encrypts changed bytes atomically, and removes the temporary directory.
+The directory is created below the operating system's standard temporary location (for example,
+`/tmp` on many Linux systems or `%TEMP%` on Windows) with a name such as
+`gitvaulty-edit-Ab12Cd`.
+
+While the editor is open, GitVaulty holds a process-owned localhost lock for that directory. On a
+normal exit, the plaintext directory is removed immediately. A crash, power loss, or `SIGKILL` can
+prevent that immediate removal, so every later GitVaulty command also checks for abandoned edit
+directories. An unlocked directory must be at least five minutes old before it is removed; a
+responding lock always wins and never expires merely because the edit has been open for a long
+time.
+
+Startup cleanup is deliberately conservative. It considers only exact `gitvaulty-edit-*` direct
+children owned by the current user, with private directory and lock-file permissions and valid lock
+metadata. Symlinks, malformed locks, unusual permissions, and unrelated temporary files are left
+untouched. Cleanup failures never prevent the requested GitVaulty command from running.
 
 If a matching plaintext file is already materialized, GitVaulty updates it too. If that file has
 independent local changes, GitVaulty asks what to do:
