@@ -7,7 +7,6 @@ export interface Repository {
   root: string;
   registryFile: string;
   sopsConfigFile: string;
-  vaultsDir: string;
   excludeFile: string;
 }
 
@@ -23,7 +22,6 @@ export async function findRepository(cwd = process.cwd()): Promise<Repository> {
     root,
     registryFile: path.join(root, ".gitvaulty", "recipients.json"),
     sopsConfigFile: path.join(root, ".sops.yaml"),
-    vaultsDir: path.join(root, "vaults"),
     excludeFile: path.resolve(root, excludeRaw),
   };
 }
@@ -31,11 +29,6 @@ export async function findRepository(cwd = process.cwd()): Promise<Repository> {
 export async function ensureInitialized(repo: Repository): Promise<void> {
   try { await access(repo.registryFile); }
   catch { throw new GitVaultyError("GitVaulty is not initialized. Run `gitvaulty init` first."); }
-}
-
-export function validateName(name: string): string {
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(name)) throw new GitVaultyError(`Invalid vault name: ${name}`);
-  return name;
 }
 
 export async function ensureParent(file: string): Promise<void> { await mkdir(path.dirname(file), { recursive: true }); }

@@ -8,103 +8,178 @@
   <strong>Git-backed secrets for humans.</strong>
 </p>
 
-GitVaulty keeps encrypted vaults and public access metadata in Git,
-while every developer keeps their private age key locally. SOPS and age are installed through npm
-and stay behind a small command surface.
+GitVaulty encrypts complete files with SOPS and age so they can live safely in Git. Filenames,
+contents, comments, formatting, and file types are preserved when decrypted; the committed
+`*.gitvaulty` file reveals none of the plaintext structure.
 
-## Install
+Access is granted independently per file, and every person keeps their own private age identity.
+There is no shared team decryption key.
 
 GitVaulty is available on [npm](https://www.npmjs.com/package/gitvaulty) and requires Node.js 20 or
 newer.
 
+## Quick start
+
+Initialize GitVaulty in a Git repository:
+
 ```sh
-npm install --save-dev gitvaulty
+npx gitvaulty init
 ```
 
-You can use it through `npx gitvaulty`, or add a shorter project script:
+### Migrate an existing file
+
+If `.env` already exists, import it:
+
+```sh
+npx gitvaulty import .env
+```
+
+GitVaulty creates `.env.gitvaulty`, decrypts it again to verify an exact byte-for-byte match, and
+keeps the original `.env` available locally. It also adds `.env` to the clone-local Git exclude
+file. Commit `.env.gitvaulty`, not `.env`.
+
+The command refuses a Git-tracked plaintext file because its secrets may already exist in Git
+history. Remove it from tracking and rotate exposed credentials before importing.
+
+### Create a new file
+
+If the plaintext file does not exist:
+
+```sh
+npx gitvaulty create config/secrets.yaml
+```
+
+GitVaulty creates `config/secrets.yaml.gitvaulty` and opens a temporary plaintext copy in
+`$VISUAL`, `$EDITOR`, or the platform's default editor. Save an ordinary file—there are no special
+markers and no values to label as secrets. The entire file is encrypted when the editor closes.
+
+`create` never imports an existing file. Use `import` explicitly for migration.
+
+## Edit
+
+Always use the logical plaintext path:
+
+```sh
+npx gitvaulty edit .env
+npx gitvaulty edit config/secrets.yaml
+```
+
+GitVaulty decrypts the file into a private temporary directory, opens the normal filename for
+editor syntax highlighting, encrypts changed bytes atomically, and removes the temporary directory.
+
+If a matching plaintext file is already materialized, GitVaulty updates it too. If that file has
+independent local changes, GitVaulty asks what to do:
+
+```text
+.env has local changes
+
+› Use local changes, then edit
+  Discard local changes, then edit
+  Cancel
+```
+
+For scripts, make local changes authoritative explicitly:
+
+```sh
+npx gitvaulty import --update .env
+```
+
+The updated encrypted file is decrypted and verified before replacing the previous version.
+
+## Local development
+
+Materialize every file you can access:
+
+```sh
+npx gitvaulty materialize
+```
+
+Or select files by their plaintext paths:
+
+```sh
+npx gitvaulty materialize -f .env -f config/secrets.yaml
+```
+
+Materialized files receive mode `0600`. Existing files are accepted only when their bytes match the
+encrypted source. Differing, symlinked, unsafe, or Git-tracked destinations are never overwritten.
+
+Inspect their state:
+
+```sh
+npx gitvaulty status
+```
+
+```text
+current  .env
+missing  config/secrets.yaml
+modified terraform/secrets.auto.tfvars.json
+```
+
+Remove materialized files when you no longer need them:
+
+```sh
+npx gitvaulty clean
+```
+
+`clean` removes only regular, untracked files whose bytes still match GitVaulty. Modified or unsafe
+files are reported and kept.
+
+## Ephemeral files while running a command
+
+`run` materializes missing files, starts the command, and removes only the unchanged files that
+this invocation created:
+
+```sh
+npx gitvaulty run -- npm start
+```
+
+With no `--file` options, it uses every file the current user may access. Limit the selection when
+needed:
+
+```sh
+npx gitvaulty run -f .env.production -- npm start
+
+npx gitvaulty run \
+  -f terraform/secrets.auto.tfvars.json \
+  -- terraform -chdir=terraform plan
+```
+
+GitVaulty materializes files; it does not interpret them or inject their contents as environment
+variables. Applications and tools continue loading their native files normally. For plain Node.js:
 
 ```json
 {
   "scripts": {
-    "secrets": "gitvaulty"
+    "start": "node --env-file=.env src/server.js"
   }
 }
 ```
 
-## Quick start
+If the child modifies a file created by `run`, GitVaulty keeps it and prints a warning. Existing
+matching files are never owned or removed by `run`. Cleanup also runs after nonzero exits and common
+termination signals; an uncatchable crash, power loss, or `SIGKILL` can still leave plaintext behind.
 
-```sh
-npx gitvaulty init
-npx gitvaulty vault create dev
-npx gitvaulty vault edit dev
-```
+Private-key variables are available to SOPS but removed from the child process environment.
 
-`init` uses your global age identity and registers the first user. If no identity exists, GitVaulty
-asks before creating one at `~/.config/gitvaulty/identity.txt`. Back it up once with
-`gitvaulty key backup`; the same identity works across all your GitVaulty repositories.
+## Supported files
 
-Edit the encrypted vault as JSON. Values under `env` are available to `run`; any JSON value can be
-used by a template.
-
-```json
-{
-  "env": {
-    "DATABASE_URL": "postgres://...",
-    "API_TOKEN": "..."
-  },
-  "terraform": {
-    "cloudflare_api_token": "..."
-  }
-}
-```
-
-## Templates
-
-Templates live under `vaults/<vault>/templates/`. Their path mirrors the generated path from the
-repository root, with `.tpl` removed:
+Whole-file encryption works with any regular file:
 
 ```text
-vaults/dev/templates/apps/api/.env.local.tpl
-  -> apps/api/.env.local
-
-vaults/prod/templates/apps/api/.env.production.tpl
-  -> apps/api/.env.production
-
-vaults/prod/templates/terraform/secrets.auto.tfvars.json.tpl
-  -> terraform/secrets.auto.tfvars.json
+.env.gitvaulty                          -> .env
+config/secrets.yaml.gitvaulty           -> config/secrets.yaml
+terraform/prod.tfvars.json.gitvaulty    -> terraform/prod.tfvars.json
+certs/client.pem.gitvaulty              -> certs/client.pem
 ```
 
-A template uses `{{path.to.value}}` for a primitive or `{{json path.to.value}}` for JSON encoding:
+The `.gitvaulty` suffix is the only storage convention. All commands accept the path on the right,
+without the suffix.
 
-```dotenv
-DATABASE_URL={{env.DATABASE_URL}}
-API_TOKEN={{env.API_TOKEN}}
-```
+Because the complete byte stream is opaque, Git does not reveal keys or document structure. The
+tradeoff is that Git cannot merge concurrent edits to the same encrypted file meaningfully; keep
+files small and split unrelated secrets into separate files when different people edit them.
 
-```json
-{{json terraform}}
-```
-
-Render and verify generated files with:
-
-```sh
-npx gitvaulty vault render dev
-npx gitvaulty vault check dev
-```
-
-Rendered files receive mode `0600` and are added to the clone-local Git exclude file. Commit the
-encrypted vault, its plaintext templates, `.gitvaulty/recipients.json`, and `.sops.yaml`—not the
-rendered files. `vault check` is suitable for a Git hook or a local preflight check.
-
-## Run a command
-
-```sh
-npx gitvaulty run dev -- npm run dev
-```
-
-Only primitive values from the vault's top-level `env` object are added to the child process.
-
-## Keys and users
+## Keys and file access
 
 ```sh
 npx gitvaulty key create
@@ -116,40 +191,42 @@ npx gitvaulty user list
 npx gitvaulty user remove
 ```
 
-GitVaulty accepts native age recipients only. A new developer runs `gitvaulty key public` and sends
-the resulting `age1...` recipient to an existing user. `user add` confirms the username and vault
-access. Never share the `AGE-SECRET-KEY-...` value printed by `key backup`.
+The global age identity normally lives at `~/.config/gitvaulty/identity.txt`. Back it up once with
+`gitvaulty key backup`; the same identity works across GitVaulty repositories.
 
-The global identity means each person needs one backup for every GitVaulty repository. CI and
-service accounts should inject a separate private identity through either content variable:
+A new developer runs `gitvaulty key public` and sends the resulting public `age1...` recipient to
+an existing user. `user add` asks which plaintext paths they may access. Private keys are never
+shared.
+
+Removing a user rotates every affected file's data key and removes that recipient. It cannot erase
+Git history or plaintext the user previously copied, so rotate external credentials after
+offboarding.
+
+CI and service accounts can inject a separate private identity:
 
 ```sh
-GITVAULTY_KEY='AGE-SECRET-KEY-...' npx gitvaulty vault render production
-SOPS_AGE_KEY='AGE-SECRET-KEY-...' npx gitvaulty vault render production
+GITVAULTY_KEY='AGE-SECRET-KEY-...' npx gitvaulty run -- npm start
 ```
 
-`GITVAULTY_KEY` takes precedence when both are set. `key public` works with an injected identity,
-while `key create`, `key backup`, and `key restore` continue to manage only the persistent global
-file. Mounted secrets can instead use `GITVAULTY_AGE_KEY_FILE=/secure/key.txt`.
+`SOPS_AGE_KEY` is also supported. Mounted keys can use
+`GITVAULTY_AGE_KEY_FILE=/secure/identity.txt` or `SOPS_AGE_KEY_FILE`.
 
-Private-key content and key-provider variables are available to SOPS but removed before
-`gitvaulty run` starts the application. Only someone who can already decrypt the affected vaults
-can add or remove access.
+## Install in a project
 
-Removing a user rotates the affected vault data keys and removes that user's recipient. It cannot
-erase Git history or plaintext the user previously copied, so rotate external database, cloud, and
-API credentials after offboarding.
+```sh
+npm install --save-dev gitvaulty
+```
+
+Then use `npx gitvaulty` as shown above or add shorter package scripts.
 
 ## Repository layout
 
 ```text
-.gitvaulty/recipients.json              # public users and vault access
-.sops.yaml                              # generated public SOPS rules
-vaults/dev/vault.sops.json              # encrypted values
-vaults/dev/templates/path/to/file.tpl   # plaintext shape, no secret values
+.gitvaulty/recipients.json                    # public users and per-file access
+.sops.yaml                                    # generated public SOPS rules
+.env.gitvaulty                                # opaque encrypted .env bytes
+terraform/prod.tfvars.json.gitvaulty          # opaque encrypted Terraform bytes
 ```
-
-There is intentionally no project configuration file: paths and behavior are convention-based.
 
 ## License
 
