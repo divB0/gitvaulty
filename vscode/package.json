@@ -1,0 +1,36 @@
+{
+  "name": "gitvaulty-vscode",
+  "displayName": "GitVaulty",
+  "description": "Edit GitVaulty encrypted files in VS Code's native text editor.",
+  "version": "0.1.0",
+  "publisher": "divB0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "extensionKind": [
+    "workspace"
+  ],
+  "main": "./dist/extension.js",
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "optionalDependencies": {
+    "@clef-sh/sops-darwin-arm64": "3.12.2",
+    "@clef-sh/sops-darwin-x64": "3.12.2",
+    "@clef-sh/sops-linux-arm64": "3.12.2",
+    "@clef-sh/sops-linux-x64": "3.12.2",
+    "@clef-sh/sops-win32-x64": "3.12.2"
+  },
+  "devDependencies": {
+    "@types/node": "26.2.0",
+    "@types/vscode": "1.100.0",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}
