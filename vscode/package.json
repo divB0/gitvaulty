@@ -13,7 +13,48 @@
   "extensionKind": [
     "workspace"
   ],
+  "activationEvents": [
+    "onCustomEditor:gitvaulty.editor",
+    "onFileSystem:gitvaulty"
+  ],
   "main": "./dist/extension.js",
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "gitvaulty.editor",
+        "displayName": "GitVaulty",
+        "selector": [
+          {
+            "filenamePattern": "*.gitvaulty"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "commands": [
+      {
+        "command": "gitvaulty.copyEncryptedPath",
+        "title": "GitVaulty: Copy Encrypted File Path"
+      },
+      {
+        "command": "gitvaulty.reload",
+        "title": "GitVaulty: Reload Encrypted Version"
+      },
+      {
+        "command": "gitvaulty.showAccess",
+        "title": "GitVaulty: Show File Access"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "gitvaulty.showAccess",
+          "group": "navigation",
+          "when": "resourceScheme == gitvaulty"
+        }
+      ]
+    }
+  },
   "scripts": {
     "build": "node esbuild.mjs",
     "test": "vitest run",

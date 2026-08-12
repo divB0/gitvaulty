@@ -7,6 +7,8 @@ import {
   findRepository,
   plaintextFileFor,
   readSecretFile,
+  readRegistry,
+  usernamesFor,
   writeSecretFile,
 } from "../../src/index.js";
 
@@ -36,6 +38,13 @@ export class GitVaultyCore implements SecretDocumentCore {
   async write(source: SecretSource, contents: Uint8Array, expectedFingerprint: string) {
     const { repo, plaintext } = await logicalFile(source);
     return writeSecretFile(repo, plaintext, Buffer.from(contents), expectedFingerprint);
+  }
+
+  async access(source: SecretSource): Promise<{ file: string; users: string[] }> {
+    const { repo, plaintext } = await logicalFile(source);
+    const opened = await readSecretFile(repo, plaintext);
+    const registry = await readRegistry(repo);
+    return { file: opened.file, users: usernamesFor(registry, opened.encryptedFile) };
   }
 
   isConflict(error: unknown): boolean { return error instanceof SecretFileConflictError; }
