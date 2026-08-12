@@ -16,7 +16,7 @@ export class SessionStore {
   getOrCreate(input: NewDocumentSession): DocumentSession {
     const existing = this.#bySource.get(input.sourceUri);
     if (existing) {
-      if (existing.virtualUri !== input.virtualUri || existing.logicalPath !== input.logicalPath) {
+      if (existing.virtualUri !== input.virtualUri) {
         throw new Error(`Conflicting GitVaulty session mapping for ${input.sourceUri}.`);
       }
       return existing;
