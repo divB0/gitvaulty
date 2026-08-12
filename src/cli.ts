@@ -155,7 +155,7 @@ export function createProgram(): Command {
   });
 
   addAccessOptions(program.command("import <path>")
-    .description("Import an existing plaintext file without removing it")
+    .description("Import an existing plaintext file and keep it locally")
     .option("--update", "replace an existing encrypted file with the current plaintext"))
     .action(async (requested: string, action: Command) => {
     await ensureCliIdentity();

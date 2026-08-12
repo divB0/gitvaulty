@@ -41,8 +41,22 @@ GitVaulty creates `.env.gitvaulty`, decrypts it again to verify an exact byte-fo
 keeps the original `.env` available locally. It also adds `.env` to the clone-local Git exclude
 file. Commit `.env.gitvaulty`, not `.env`.
 
-The command refuses a Git-tracked plaintext file because its secrets may already exist in Git
-history. Remove it from tracking and rotate exposed credentials before importing.
+If the plaintext file is tracked, GitVaulty warns that its secrets may already exist in Git history
+and asks before continuing:
+
+```text
+.env is tracked by Git and may already exist in Git history.
+Rotate any exposed credentials even if you continue.
+? Stop tracking .env and continue importing? (y/N)
+```
+
+Accepting preserves the local plaintext file, adds it to the clone-local Git exclude file, and
+removes it from Git's index with `git rm --cached`. If the file was already committed, its deletion
+is staged alongside the new encrypted file. Declining makes no import or index changes.
+
+This does not erase the plaintext from existing commits or other clones. Rewriting shared Git
+history is a separate, disruptive repository operation; rotate every credential that may have been
+exposed regardless of whether you later rewrite that history.
 
 ### Create a new file
 
