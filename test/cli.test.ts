@@ -1,7 +1,11 @@
+import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { Command } from "commander";
-import { createProgram, formatGroups, formatUsers, main } from "../src/cli.js";
+import { createProgram, formatGroups, formatUsers, isMainModule, main } from "../src/cli.js";
 import type { Registry } from "../src/registry.js";
 
 const registry: Registry = {
@@ -19,6 +23,31 @@ const registry: Registry = {
 };
 
 describe("GitVaulty CLI", () => {
+  it("uses the package version in CLI output", async () => {
+    const manifest = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
+    expect(createProgram().version()).toBe(manifest.version);
+  });
+
+  it("recognizes direct and symlinked executable paths as the main module", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "gitvaulty-cli-entrypoint-"));
+    try {
+      const target = path.join(root, "cli.js");
+      const linked = path.join(root, "gitvaulty");
+      const other = path.join(root, "other.js");
+      await writeFile(target, "// cli");
+      await writeFile(other, "// other");
+      await symlink(target, linked);
+
+      const moduleUrl = pathToFileURL(target).href;
+      expect(isMainModule(moduleUrl, target)).toBe(true);
+      expect(isMainModule(moduleUrl, linked)).toBe(true);
+      expect(isMainModule(moduleUrl, other)).toBe(false);
+      expect(isMainModule(moduleUrl, undefined)).toBe(false);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("exposes group-first file access commands", () => {
     const program = createProgram();
     expect(program.name()).toBe("gitvaulty");

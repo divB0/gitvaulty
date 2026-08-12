@@ -1,6 +1,6 @@
 {
   "name": "gitvaulty",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Git-backed secrets for humans.",
   "type": "module",
   "license": "MIT",
@@ -40,7 +40,7 @@
   ],
   "scripts": {
     "build": "tsup && tsc -p tsconfig.build.json",
-    "check": "npm run typecheck && npm test && npm run build && node dist/cli.js --help >/dev/null",
+    "check": "npm run typecheck && npm test && npm run build && node scripts/package-smoke.mjs",
     "prepublishOnly": "npm run check",
     "test": "vitest run",
     "test:watch": "vitest",

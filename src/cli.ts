@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import { checkbox, confirm, input, password, select } from "@inquirer/prompts";
 import { Command } from "commander";
+import { readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { executeChecked } from "./process.js";
 import { findRepository, type Repository } from "./repository.js";
 import { createIdentity, currentRecipient, identityFile, readIdentity, restoreIdentity } from "./key.js";
@@ -36,6 +38,10 @@ import {
 } from "./registry.js";
 import { GitVaultyError, TrackedPlaintextError } from "./errors.js";
 import { cleanupAbandonedEditDirectories } from "./edit-temp.js";
+
+const packageManifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version?: unknown };
+if (typeof packageManifest.version !== "string") throw new Error("package.json must contain a version string.");
+const packageVersion = packageManifest.version;
 
 async function localUsername(root: string): Promise<string> {
   for (const key of ["user.email", "user.name"]) {
@@ -133,7 +139,7 @@ export async function importWithTrackedPrompt(
 }
 
 export function createProgram(): Command {
-  const program = new Command().name("gitvaulty").description("Git-backed secrets for humans.").version("0.1.0").enablePositionalOptions();
+  const program = new Command().name("gitvaulty").description("Git-backed secrets for humans.").version(packageVersion).enablePositionalOptions();
 
   program.command("init").description("Initialize GitVaulty in this repository").action(async () => {
     const repo = await findRepository();
@@ -349,7 +355,13 @@ export async function main(
   await program.parseAsync(argv);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main().catch((error: unknown) => {
+export function isMainModule(moduleUrl: string, argvPath: string | undefined): boolean {
+  if (!argvPath) return false;
+  try { return realpathSync(fileURLToPath(moduleUrl)) === realpathSync(argvPath); }
+  catch { return false; }
+}
+
+if (isMainModule(import.meta.url, process.argv[1])) main().catch((error: unknown) => {
   process.stderr.write(`Error: ${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 1;
 });
