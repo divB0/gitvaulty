@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { importWithTrackedPrompt } from "../src/cli.js";
 import { createIdentity } from "../src/key.js";
-import { TrackedPlaintextError } from "../src/errors.js";
+import { SecretFileConflictError, TrackedPlaintextError } from "../src/errors.js";
 import {
   createSecretFile,
   editSecretFile,
@@ -13,7 +13,9 @@ import {
   importSecretFile,
   initialize,
   plaintextFileFor,
+  readSecretFile,
   updateSecretFile,
+  writeSecretFile,
 } from "../src/operations.js";
 import { executeChecked } from "../src/process.js";
 import { readRegistry } from "../src/registry.js";
@@ -74,6 +76,55 @@ describe("opaque native secret files", () => {
     expect(await decryptSecretFile(repo, encrypted)).toEqual(bytes);
     expect((await readFile(encrypted, "utf8"))).not.toContain("ABC");
     expect(await readFile(repo.excludeFile, "utf8")).toContain("/cert.bin");
+  });
+
+  it("reads exact secret bytes with the fingerprint of their ciphertext", async () => {
+    const plaintext = Buffer.from([0, 1, 2, 10, 65, 255]);
+    await writeFile(path.join(root, "secret.bin"), plaintext);
+    await importSecretFile(repo, "secret.bin");
+
+    const first = await readSecretFile(repo, "secret.bin");
+    const second = await readSecretFile(repo, "secret.bin");
+
+    expect(first).toMatchObject({
+      file: "secret.bin",
+      encryptedFile: "secret.bin.gitvaulty",
+      fingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
+    });
+    expect(first.plaintext).toEqual(plaintext);
+    expect(second.fingerprint).toBe(first.fingerprint);
+  });
+
+  it("writes verified bytes against a fingerprint and updates a current materialization", async () => {
+    await writeFile(path.join(root, ".env"), "TOKEN=old\n");
+    await importSecretFile(repo, ".env");
+    const opened = await readSecretFile(repo, ".env");
+
+    const saved = await writeSecretFile(repo, ".env", Buffer.from("TOKEN=new\n"), opened.fingerprint);
+
+    expect(saved).toMatchObject({
+      file: ".env",
+      encryptedFile: ".env.gitvaulty",
+      fingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
+    });
+    expect(saved.fingerprint).not.toBe(opened.fingerprint);
+    expect(await decryptSecretFile(repo, path.join(root, ".env.gitvaulty"))).toEqual(Buffer.from("TOKEN=new\n"));
+    expect(await readFile(path.join(root, ".env"), "utf8")).toBe("TOKEN=new\n");
+  });
+
+  it("refuses to overwrite ciphertext changed after a guarded read", async () => {
+    await writeFile(path.join(root, ".env"), "TOKEN=old\n");
+    await importSecretFile(repo, ".env");
+    const opened = await readSecretFile(repo, ".env");
+    const encrypted = path.join(root, ".env.gitvaulty");
+    const external = Buffer.from("external ciphertext");
+    await writeFile(encrypted, external);
+
+    await expect(writeSecretFile(repo, ".env", Buffer.from("TOKEN=new\n"), opened.fingerprint)).rejects.toMatchObject({
+      name: "SecretFileConflictError",
+      file: ".env",
+    } satisfies Partial<SecretFileConflictError>);
+    expect(await readFile(encrypted)).toEqual(external);
   });
 
   it("does not reveal dotenv keys, values, comments, or structure", async () => {

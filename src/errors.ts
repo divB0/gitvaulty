@@ -9,3 +9,11 @@ export class TrackedPlaintextError extends GitVaultyError {
     super(`Git-tracked plaintext cannot be imported safely: ${file}`);
   }
 }
+
+export class SecretFileConflictError extends GitVaultyError {
+  override name = "SecretFileConflictError";
+
+  constructor(readonly file: string) {
+    super(`Encrypted file changed while it was open: ${file}`);
+  }
+}

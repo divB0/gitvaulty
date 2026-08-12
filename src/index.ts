@@ -1,4 +1,4 @@
-export { GitVaultyError, TrackedPlaintextError } from "./errors.js";
+export { GitVaultyError, SecretFileConflictError, TrackedPlaintextError } from "./errors.js";
 export { normalizeUsername, parseRecipient } from "./recipient.js";
 export { findRepository, type Repository } from "./repository.js";
 export {
@@ -31,6 +31,8 @@ export {
   importSecretFile,
   updateSecretFile,
   editSecretFile,
+  readSecretFile,
+  writeSecretFile,
   addUser,
   removeUser,
   createGroup,
@@ -47,6 +49,8 @@ export {
   type CreatedSecretFile,
   type ImportedSecretFile,
   type EditConflictResolution,
+  type OpenedSecretFile,
+  type SavedSecretFile,
   type SecretFileStatus,
   type CleanResult,
   type RunResult,

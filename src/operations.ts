@@ -34,7 +34,7 @@ import {
   encryptSecretFile,
 } from "./sops.js";
 import { execute, executeChecked } from "./process.js";
-import { GitVaultyError, TrackedPlaintextError } from "./errors.js";
+import { GitVaultyError, SecretFileConflictError, TrackedPlaintextError } from "./errors.js";
 import { normalizeUsername } from "./recipient.js";
 import { createEditTempSession } from "./edit-temp.js";
 
@@ -195,7 +195,10 @@ async function replaceEncryptedFile(
   encrypted: string,
   encryptedAbsolute: string,
   plaintext: Buffer,
-): Promise<void> {
+  expectedFingerprint?: string,
+): Promise<string> {
+  const logical = encrypted.slice(0, -".gitvaulty".length);
+  if (expectedFingerprint !== undefined) await assertCiphertextFingerprint(encryptedAbsolute, logical, expectedFingerprint);
   const registry = await readRegistry(repo);
   const ciphertext = await encryptSecretFile(repo, encrypted, plaintext, recipientsFor(registry, encrypted));
   await ensureParent(encryptedAbsolute);
@@ -208,11 +211,23 @@ async function replaceEncryptedFile(
     if (!(await decryptSecretFile(repo, temporary)).equals(plaintext)) {
       throw new GitVaultyError(`Encrypted verification failed for ${encrypted}.`);
     }
+    if (expectedFingerprint !== undefined) await assertCiphertextFingerprint(encryptedAbsolute, logical, expectedFingerprint);
     await rename(temporary, encryptedAbsolute);
     await chmod(encryptedAbsolute, 0o600);
+    return digest(ciphertext);
   } finally {
     await rm(temporary, { force: true });
   }
+}
+
+async function assertCiphertextFingerprint(file: string, logical: string, expected: string): Promise<void> {
+  let actual: string;
+  try { actual = digest(await readFile(file)); }
+  catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") throw new SecretFileConflictError(logical);
+    throw error;
+  }
+  if (actual !== expected) throw new SecretFileConflictError(logical);
 }
 
 export interface CreatedSecretFile { file: string }
@@ -309,6 +324,70 @@ async function authorizedFile(repo: Repository, plaintextFile: string): Promise<
   const stats = await lstat(encryptedAbsolute).catch(() => { throw new GitVaultyError(`Encrypted file does not exist: ${encrypted}`); });
   if (!stats.isFile() || stats.isSymbolicLink()) throw new GitVaultyError(`Encrypted source must be a regular file: ${encrypted}`);
   return { logical, encrypted, encryptedAbsolute };
+}
+
+export interface OpenedSecretFile {
+  file: string;
+  encryptedFile: string;
+  plaintext: Buffer;
+  fingerprint: string;
+}
+
+export interface SavedSecretFile {
+  file: string;
+  encryptedFile: string;
+  fingerprint: string;
+}
+
+export async function readSecretFile(repo: Repository, plaintextFile: string): Promise<OpenedSecretFile> {
+  const file = await authorizedFile(repo, plaintextFile);
+  const before = await readFile(file.encryptedAbsolute);
+  const plaintext = await decryptSecretFile(repo, file.encryptedAbsolute);
+  const after = await readFile(file.encryptedAbsolute);
+  if (!after.equals(before)) throw new SecretFileConflictError(file.logical);
+  return {
+    file: file.logical,
+    encryptedFile: file.encrypted,
+    plaintext,
+    fingerprint: digest(before),
+  };
+}
+
+export async function writeSecretFile(
+  repo: Repository,
+  plaintextFile: string,
+  plaintext: Buffer,
+  expectedFingerprint: string,
+): Promise<SavedSecretFile> {
+  const file = await authorizedFile(repo, plaintextFile);
+  await assertCiphertextFingerprint(file.encryptedAbsolute, file.logical, expectedFingerprint);
+
+  const plaintextAbsolute = path.join(repo.root, ...file.logical.split("/"));
+  await assertNoSymlinkComponents(repo, plaintextAbsolute, true);
+  let materializedBefore: Buffer | undefined;
+  try {
+    const stats = await lstat(plaintextAbsolute);
+    if (!stats.isFile() || stats.isSymbolicLink()) throw new GitVaultyError(`Plaintext destination is unsafe: ${file.logical}`);
+    if (await isTracked(repo, file.logical)) throw new GitVaultyError(`Git-tracked plaintext cannot be edited safely: ${file.logical}`);
+    const local = await readFile(plaintextAbsolute);
+    const current = await decryptSecretFile(repo, file.encryptedAbsolute);
+    if (local.equals(current)) materializedBefore = local;
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+
+  const fingerprint = await replaceEncryptedFile(
+    repo,
+    file.encrypted,
+    file.encryptedAbsolute,
+    plaintext,
+    expectedFingerprint,
+  );
+  if (materializedBefore !== undefined) {
+    const currentLocal = await readFile(plaintextAbsolute).catch(() => undefined);
+    if (currentLocal?.equals(materializedBefore)) await atomicWrite(plaintextAbsolute, plaintext);
+  }
+  return { file: file.logical, encryptedFile: file.encrypted, fingerprint };
 }
 
 export type EditConflictResolution = "error" | "use-local" | "discard-local";
