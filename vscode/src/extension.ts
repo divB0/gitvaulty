@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { ViewColumn, window, workspace, type ExtensionContext, type TextDocumentShowOptions } from "vscode";
 
 import { registerEditorUx } from "./commands.js";
@@ -7,6 +9,8 @@ import { GITVAULTY_EDITOR_VIEW_TYPE, GitVaultyLauncher } from "./launcher.js";
 import { GITVAULTY_SCHEME } from "./uri.js";
 
 export function activate(context: ExtensionContext): void {
+  const bundledSops = path.join(context.extensionUri.fsPath, "bin", process.platform === "win32" ? "sops.exe" : "sops");
+  if (process.env.GITVAULTY_SOPS === undefined && existsSync(bundledSops)) process.env.GITVAULTY_SOPS = bundledSops;
   const core = new GitVaultyCore();
   const provider = new GitVaultyFileSystemProvider(core);
   const launcher = new GitVaultyLauncher({

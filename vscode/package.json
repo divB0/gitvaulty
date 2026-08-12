@@ -1,11 +1,39 @@
 {
-  "name": "gitvaulty-vscode",
+  "name": "gitvaulty",
   "displayName": "GitVaulty",
   "description": "Edit GitVaulty encrypted files in VS Code's native text editor.",
   "version": "0.1.0",
-  "publisher": "divB0",
+  "publisher": "divb0",
   "private": true,
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
+  "icon": "assets/icon.png",
+  "preview": true,
+  "pricing": "Free",
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "secrets",
+    "encryption",
+    "sops",
+    "age",
+    "dotenv",
+    "environment",
+    "git",
+    "security"
+  ],
+  "galleryBanner": {
+    "color": "#101827",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/divB0/gitvaulty.git"
+  },
+  "homepage": "https://github.com/divB0/gitvaulty/tree/main/vscode",
+  "bugs": {
+    "url": "https://github.com/divB0/gitvaulty/issues"
+  },
   "type": "module",
   "engines": {
     "vscode": "^1.100.0"
@@ -13,11 +41,29 @@
   "extensionKind": [
     "workspace"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "GitVaulty decrypts repository secrets and requires a trusted workspace."
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "GitVaulty requires local Git, filesystem, identity, and SOPS access."
+    }
+  },
   "activationEvents": [
     "onCustomEditor:gitvaulty.editor",
     "onFileSystem:gitvaulty"
   ],
   "main": "./dist/extension.js",
+  "files": [
+    "assets/icon.png",
+    "bin/**",
+    "dist/extension.js",
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md"
+  ],
   "contributes": {
     "customEditors": [
       {
@@ -58,9 +104,14 @@
   "scripts": {
     "build": "node esbuild.mjs",
     "check": "npm run typecheck && npm test && npm run test:integration",
+    "check:package": "vsce ls --tree",
+    "package": "vsce package",
+    "package:local": "node scripts/package-local.mjs",
+    "stage:sops": "node scripts/stage-sops.mjs",
     "test": "vitest run",
     "test:integration": "npm run build && node esbuild.test.mjs && node dist/test/runTest.cjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "vscode:prepublish": "npm run build"
   },
   "optionalDependencies": {
     "@clef-sh/sops-darwin-arm64": "3.12.2",
@@ -73,6 +124,7 @@
     "@types/node": "26.2.0",
     "@types/vscode": "1.100.0",
     "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "3.9.2",
     "esbuild": "0.28.2",
     "typescript": "7.0.2",
     "vitest": "4.1.10"

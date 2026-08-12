@@ -4,7 +4,7 @@ import path from "node:path";
 import { runTests } from "@vscode/test-electron";
 
 async function main(): Promise<void> {
-  const extensionDevelopmentPath = path.resolve(__dirname, "../..");
+  const extensionDevelopmentPath = process.env.GITVAULTY_EXTENSION_UNDER_TEST ?? path.resolve(__dirname, "../..");
   const extensionTestsPath = path.resolve(__dirname, "suite", "index.cjs");
   const userDataDirectory = await mkdtemp(path.join(os.tmpdir(), "gv-vscode-test-"));
   try {

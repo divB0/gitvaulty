@@ -1,0 +1,109 @@
+name: VS Code extension release
+
+on:
+  push:
+    tags:
+      - "vscode-v*"
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: Publish as a Marketplace prerelease
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Package ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: darwin-arm64
+            runner: macos-15
+          - target: darwin-x64
+            runner: macos-15-intel
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+          - target: linux-x64
+            runner: ubuntu-24.04
+          - target: win32-x64
+            runner: windows-2025
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            vscode/package-lock.json
+      - name: Install core dependencies
+        run: npm ci
+      - name: Install extension dependencies
+        run: npm ci
+        working-directory: vscode
+      - name: Verify extension
+        if: runner.os != 'Linux'
+        run: npm run check
+        working-directory: vscode
+      - name: Verify extension on Linux
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run check
+        working-directory: vscode
+      - name: Verify tag version
+        if: startsWith(github.ref, 'refs/tags/vscode-v')
+        shell: bash
+        run: |
+          expected="${GITHUB_REF_NAME#vscode-v}"
+          actual="$(node -p "require('./vscode/package.json').version")"
+          test "$actual" = "$expected"
+      - name: Package VSIX
+        run: |
+          npm run stage:sops -- ${{ matrix.target }}
+          npm run package -- --target ${{ matrix.target }} --out gitvaulty-${{ matrix.target }}.vsix
+        working-directory: vscode
+      - uses: actions/upload-artifact@v6
+        with:
+          name: gitvaulty-${{ matrix.target }}
+          path: vscode/gitvaulty-${{ matrix.target }}.vsix
+          if-no-files-found: error
+
+  publish:
+    name: Publish to Visual Studio Marketplace
+    needs: package
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - uses: actions/download-artifact@v6
+        with:
+          pattern: gitvaulty-*
+          path: vscode/vsix
+          merge-multiple: true
+      - name: Install publisher tooling
+        run: npm ci
+        working-directory: vscode
+      - name: Publish platform packages
+        shell: bash
+        working-directory: vscode
+        env:
+          PRERELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || false }}
+        run: |
+          shopt -s nullglob
+          packages=(vsix/*.vsix)
+          test "${#packages[@]}" -eq 5
+          for package in "${packages[@]}"; do
+            args=(publish --oidc --packagePath "$package")
+            if [[ "$PRERELEASE" == "true" ]]; then args+=(--pre-release); fi
+            npx vsce "${args[@]}"
+          done

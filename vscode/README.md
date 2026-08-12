@@ -57,15 +57,54 @@ binary files.
 
 ## Development
 
-From the `vscode/` directory:
+Install the root dependencies first because the extension bundles GitVaulty's core TypeScript, then
+install the extension package. Marketplace tooling requires Node.js 22 or newer.
 
 ```sh
 npm ci
-npm run check
+npm --prefix vscode ci
+npm --prefix vscode run check
+```
+
+Create and test the package for the current machine:
+
+```sh
+npm --prefix vscode run package:local
 ```
 
 The check runs unit tests, typechecking, the production bundle, and a real VS Code extension-host
-test that opens, edits, saves, and verifies an encrypted fixture.
+test that opens, edits, saves, and verifies an encrypted fixture. Packaging stages only the current
+platform's SOPS executable and its license into the VSIX.
+
+## Marketplace releases
+
+The extension uses the permanent Marketplace identity `divb0.gitvaulty`. Before the first release:
+
+1. Create the `divb0` publisher in the Visual Studio Marketplace publisher portal.
+2. Configure Marketplace trusted publishing for GitHub repository `divB0/gitvaulty` and workflow
+   `.github/workflows/vscode-release.yml`.
+3. Confirm that `vscode/package.json` and `vscode/CHANGELOG.md` contain the intended version.
+
+The **VS Code extension release** GitHub workflow builds and tests native packages for macOS arm64
+and x64, Linux arm64 and x64, and Windows x64. A manual run publishes a prerelease by default. A tag
+matching the extension version publishes a normal release:
+
+```sh
+git tag vscode-v0.1.0
+git push origin vscode-v0.1.0
+```
+
+The workflow verifies that the tag version exactly matches `vscode/package.json` before publishing
+all five packages with short-lived OIDC credentials. Marketplace version numbers cannot be reused:
+after publishing a prerelease, increment `vscode/package.json` before publishing a normal release.
+
+For a local one-off inspection from the extension directory:
+
+```sh
+cd vscode
+npm ci
+npm run check:package
+```
 
 ## License
 
