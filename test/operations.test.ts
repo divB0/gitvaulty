@@ -4,6 +4,7 @@ import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { createIdentity } from "../src/key.js";
+import { TrackedPlaintextError } from "../src/errors.js";
 import {
   createSecretFile,
   editSecretFile,
@@ -88,7 +89,10 @@ describe("opaque native secret files", () => {
   it("refuses tracked plaintext and symlinked paths", async () => {
     await writeFile(path.join(root, ".env"), "TOKEN=secret\n");
     await executeChecked("git", ["add", ".env"], { cwd: root });
-    await expect(importSecretFile(repo, ".env")).rejects.toThrow("Git-tracked plaintext");
+    await expect(importSecretFile(repo, "./.env")).rejects.toMatchObject({
+      name: "TrackedPlaintextError",
+      file: ".env",
+    } satisfies Partial<TrackedPlaintextError>);
 
     const outside = await mkdtemp(path.join(os.tmpdir(), "gitvaulty-outside-"));
     await symlink(outside, path.join(root, "linked"));

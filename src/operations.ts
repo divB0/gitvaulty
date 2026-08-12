@@ -34,7 +34,7 @@ import {
   encryptSecretFile,
 } from "./sops.js";
 import { execute, executeChecked } from "./process.js";
-import { GitVaultyError } from "./errors.js";
+import { GitVaultyError, TrackedPlaintextError } from "./errors.js";
 import { normalizeUsername } from "./recipient.js";
 import { createEditTempSession } from "./edit-temp.js";
 
@@ -249,8 +249,8 @@ export async function importSecretFile(repo: Repository, plaintextFile: string, 
     throw error;
   }
   if (!stats.isFile() || stats.isSymbolicLink()) throw new GitVaultyError(`Plaintext source must be a regular file: ${logical}`);
-  if (await isTracked(repo, logical)) throw new GitVaultyError(`Git-tracked plaintext cannot be imported safely: ${logical}`);
   if (await fileExists(encryptedAbsolute)) throw new GitVaultyError(`Encrypted file already exists: ${encrypted}`);
+  if (await isTracked(repo, logical)) throw new TrackedPlaintextError(logical);
   const plaintext = await readFile(plaintextAbsolute);
   await registerEncryptedFile(repo, encrypted, plaintext, access);
   await exclude(repo, plaintextAbsolute);
@@ -269,7 +269,7 @@ export async function updateSecretFile(repo: Repository, plaintextFile: string):
     throw error;
   }
   if (!stats.isFile() || stats.isSymbolicLink()) throw new GitVaultyError(`Plaintext source must be a regular file: ${file.logical}`);
-  if (await isTracked(repo, file.logical)) throw new GitVaultyError(`Git-tracked plaintext cannot be imported safely: ${file.logical}`);
+  if (await isTracked(repo, file.logical)) throw new TrackedPlaintextError(file.logical);
   const plaintext = await readFile(plaintextAbsolute);
   await replaceEncryptedFile(repo, file.encrypted, file.encryptedAbsolute, plaintext);
   await exclude(repo, plaintextAbsolute);
