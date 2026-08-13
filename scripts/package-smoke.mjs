@@ -21,7 +21,11 @@ try {
   const npm = process.platform === "win32" ? "npm.cmd" : "npm";
   const packed = spawnSync(npm, ["pack", "--dry-run", "--json", "--ignore-scripts"], { encoding: "utf8" });
   assert.equal(packed.status, 0, packed.stderr);
-  const [packageReport] = JSON.parse(packed.stdout);
+  const packageOutput = JSON.parse(packed.stdout);
+  const packageReport = Array.isArray(packageOutput)
+    ? packageOutput[0]
+    : packageOutput[manifest.name] ?? Object.values(packageOutput)[0];
+  assert(packageReport && Array.isArray(packageReport.files), "npm pack returned an unsupported JSON report");
   const packagedFiles = new Set(packageReport.files.map((file) => file.path));
   for (const required of [
     "dist/cli.js",
