@@ -101,8 +101,11 @@ function addAccessOptions(command: Command): Command {
     .option("-u, --user <username>", "direct user access; repeat for more users", collect, []);
 }
 
-function accessOptions(command: Command): { groups: string[]; users: string[] } {
-  const options = command.opts<{ group: string[]; user: string[] }>();
+type AccessCommandOptions = { group: string[]; user: string[] };
+type FileCommandOptions = { file: string[] };
+type ImportCommandOptions = AccessCommandOptions & { update?: boolean };
+
+function accessOptions(options: AccessCommandOptions): { groups: string[]; users: string[] } {
   return { groups: options.group, users: options.user };
 }
 
@@ -152,10 +155,10 @@ export function createProgram(): Command {
     process.stdout.write("GitVaulty initialized.\n");
   });
 
-  addAccessOptions(program.command("create <path>").description("Create an encrypted native file")).action(async (requested: string, action: Command) => {
+  addAccessOptions(program.command("create <path>").description("Create an encrypted native file")).action(async (requested: string, options: AccessCommandOptions) => {
     await ensureCliIdentity();
     const repo = await findRepository();
-    const created = await createSecretFile(repo, requested, accessOptions(action));
+    const created = await createSecretFile(repo, requested, accessOptions(options));
     await editSecretFile(repo, created.file);
     process.stdout.write(`Created ${created.file}.gitvaulty.\n`);
   });
@@ -163,23 +166,22 @@ export function createProgram(): Command {
   addAccessOptions(program.command("import <path>")
     .description("Import an existing plaintext file and keep it locally")
     .option("--update", "replace an existing encrypted file with the current plaintext"))
-    .action(async (requested: string, action: Command) => {
+    .action(async (requested: string, options: ImportCommandOptions) => {
     await ensureCliIdentity();
     const repo = await findRepository();
-    const options = action.opts<{ update?: boolean; group: string[]; user: string[] }>();
     if (options.update && (options.group.length > 0 || options.user.length > 0)) {
       throw new GitVaultyError("Use `gitvaulty access <path>` to change access for an existing file.");
     }
-    const imported = await importWithTrackedPrompt(repo, requested, accessOptions(action), options.update);
+    const imported = await importWithTrackedPrompt(repo, requested, accessOptions(options), options.update);
     if (!imported) return;
-    process.stdout.write(`${action.opts<{ update?: boolean }>().update ? "Updated" : "Imported"} and verified ${imported.file} (${imported.bytes} bytes).\n`);
+    process.stdout.write(`${options.update ? "Updated" : "Imported"} and verified ${imported.file} (${imported.bytes} bytes).\n`);
   });
 
-  addAccessOptions(program.command("access <path>").description("Change who can access an encrypted file")).action(async (requested: string, action: Command) => {
+  addAccessOptions(program.command("access <path>").description("Change who can access an encrypted file")).action(async (requested: string, options: AccessCommandOptions) => {
     await ensureCliIdentity();
     const repo = await findRepository();
     const registry = await readRegistry(repo);
-    const provided = accessOptions(action);
+    const provided = accessOptions(options);
     let groups = provided.groups;
     let users = provided.users;
     if (groups.length === 0 && users.length === 0) {
@@ -227,22 +229,22 @@ export function createProgram(): Command {
     [],
   );
 
-  addFileOptions(program.command("materialize").description("Create persistent local plaintext files")).action(async (action: Command) => {
+  addFileOptions(program.command("materialize").description("Create persistent local plaintext files")).action(async (options: FileCommandOptions) => {
     await ensureCliIdentity();
-    const created = await materializeSecretFiles(await findRepository(), action.opts<{ file: string[] }>().file);
+    const created = await materializeSecretFiles(await findRepository(), options.file);
     process.stdout.write(created.length ? `${created.map((file) => `Materialized ${file}.`).join("\n")}\n` : "All selected files are already materialized.\n");
   });
 
-  addFileOptions(program.command("clean").description("Remove unchanged materialized plaintext files")).action(async (action: Command) => {
+  addFileOptions(program.command("clean").description("Remove unchanged materialized plaintext files")).action(async (options: FileCommandOptions) => {
     await ensureCliIdentity();
-    const result = await cleanSecretFiles(await findRepository(), action.opts<{ file: string[] }>().file);
+    const result = await cleanSecretFiles(await findRepository(), options.file);
     for (const file of result.removed) process.stdout.write(`Removed ${file}.\n`);
     for (const file of result.retained) process.stderr.write(`Kept ${file.file}: ${file.state}.\n`);
   });
 
-  addFileOptions(program.command("status").description("Show plaintext materialization status")).action(async (action: Command) => {
+  addFileOptions(program.command("status").description("Show plaintext materialization status")).action(async (options: FileCommandOptions) => {
     await ensureCliIdentity();
-    for (const file of await statusSecretFiles(await findRepository(), action.opts<{ file: string[] }>().file)) {
+    for (const file of await statusSecretFiles(await findRepository(), options.file)) {
       process.stdout.write(`${file.state.padEnd(8)} ${file.file}\n`);
     }
   });
@@ -251,10 +253,9 @@ export function createProgram(): Command {
     .description("Materialize encrypted files while a command runs")
     .allowUnknownOption(true)
     .passThroughOptions())
-    .action(async (command: string[], action: Command) => {
+    .action(async (command: string[], options: FileCommandOptions) => {
       await ensureCliIdentity();
-      const files = action.opts<{ file: string[] }>().file;
-      const result = await runWithFiles(await findRepository(), files, command);
+      const result = await runWithFiles(await findRepository(), options.file, command);
       for (const file of result.retained) process.stderr.write(`Warning: ${file} changed while the command ran and was kept.\n`);
       process.exitCode = result.code;
     });
