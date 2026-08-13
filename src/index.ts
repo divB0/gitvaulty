@@ -38,6 +38,7 @@ export {
   editSecretFile,
   readSecretFile,
   writeSecretFile,
+  registerUser,
   addUser,
   removeUser,
   createGroup,

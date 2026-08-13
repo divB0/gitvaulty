@@ -2,6 +2,7 @@ import { access, mkdtemp, readFile, stat, symlink, writeFile } from "node:fs/pro
 import os from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { generateIdentity, identityToRecipient } from "age-encryption";
 
 import { importWithTrackedPrompt } from "../src/cli.js";
 import { createIdentity } from "../src/key.js";
@@ -14,11 +15,12 @@ import {
   initialize,
   plaintextFileFor,
   readSecretFile,
+  registerUser,
   updateSecretFile,
   writeSecretFile,
 } from "../src/operations.js";
 import { executeChecked } from "../src/process.js";
-import { readRegistry } from "../src/registry.js";
+import { readRegistry, recipientsFor } from "../src/registry.js";
 import { findRepository, type Repository } from "../src/repository.js";
 import { decryptSecretFile } from "../src/sops.js";
 
@@ -66,6 +68,24 @@ describe("opaque native secret files", () => {
     });
     await writeFile(path.join(root, ".env"), "TOKEN=secret\n");
     await expect(createSecretFile(repo, ".env")).rejects.toThrow("use `gitvaulty import .env`");
+  });
+
+  it("registers a public recipient without granting file access", async () => {
+    const recipient = await identityToRecipient(await generateIdentity());
+    await createSecretFile(repo, "team.env");
+    const before = await readRegistry(repo);
+
+    await registerUser(repo, { username: "alice", recipient });
+
+    const after = await readRegistry(repo);
+    expect(after.users).toContainEqual({ username: "alice", recipient });
+    expect(after.groups).toEqual(before.groups);
+    expect(after.files).toEqual(before.files);
+    expect(recipientsFor(after, "team.env.gitvaulty")).toEqual(recipientsFor(before, "team.env.gitvaulty"));
+    await expect(registerUser(repo, { username: "alice", recipient: await identityToRecipient(await generateIdentity()) }))
+      .rejects.toThrow("username or recipient already exists");
+    await expect(registerUser(repo, { username: "bob", recipient }))
+      .rejects.toThrow("username or recipient already exists");
   });
 
   it("requires the creator to belong to an explicit file policy", async () => {

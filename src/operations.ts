@@ -481,6 +481,17 @@ async function mutateAccess(repo: Repository, mutate: (registry: Registry) => vo
   }
 }
 
+export async function registerUser(repo: Repository, user: GitVaultyUser): Promise<void> {
+  await ensureInitialized(repo);
+  const registry = await readRegistry(repo);
+  const registered = normalizeGitVaultyUser(user);
+  if (registry.users.some((item) => item.username === registered.username || item.recipient === registered.recipient)) {
+    throw new GitVaultyError("That username or recipient already exists.");
+  }
+  registry.users.push(registered);
+  await writeRegistry(repo, registry);
+}
+
 export async function addUser(repo: Repository, user: NewUser): Promise<void> {
   const added = normalizeGitVaultyUser(user);
   await mutateAccess(repo, (registry) => {
