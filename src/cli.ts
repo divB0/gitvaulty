@@ -18,6 +18,7 @@ import {
   encryptedFileFor,
   importSecretFile,
   initialize,
+  isInitialized,
   materializeSecretFiles,
   removeGroupMember,
   removeUser,
@@ -154,6 +155,7 @@ export function createProgram(): Command {
 
   program.command("init").description("Initialize GitVaulty in this repository").action(async () => {
     const repo = await findRepository();
+    if (await isInitialized(repo)) throw new GitVaultyError("GitVaulty is already initialized.");
     const recipient = await ensureCliIdentity();
     const username = await input({ message: "Your username", default: await localUsername(repo.root), validate: (value) => {
       try { normalizeUsername(value); return true; }

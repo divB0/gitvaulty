@@ -5,12 +5,30 @@ const operationMocks = vi.hoisted(() => ({
   createSecretFile: vi.fn(async (_repository, file: string) => ({ file })),
   editSecretFile: vi.fn(async () => false),
   importSecretFile: vi.fn(async (_repository, file: string) => ({ file, bytes: 12 })),
+  initialize: vi.fn(async () => ({ agentSkill: "installed" as const })),
+  isInitialized: vi.fn(async () => false),
   materializeSecretFiles: vi.fn(async () => []),
   registerUser: vi.fn(async () => undefined),
   runWithFiles: vi.fn(async () => ({ code: 0, retained: [] })),
   setFileAccess: vi.fn(async (_repository, file: string, access) => ({ path: `${file}.gitvaulty`, ...access })),
   statusSecretFiles: vi.fn(async () => []),
   updateSecretFile: vi.fn(async (_repository, file: string) => ({ file, bytes: 12 })),
+}));
+
+const keyMocks = vi.hoisted(() => ({
+  createIdentity: vi.fn(),
+  currentRecipient: vi.fn(async () => "age1owner"),
+  identityFile: vi.fn(() => "/identity.txt"),
+  readIdentity: vi.fn(async () => "AGE-SECRET-KEY-OWNER"),
+  restoreIdentity: vi.fn(),
+}));
+
+const promptMocks = vi.hoisted(() => ({
+  checkbox: vi.fn(),
+  confirm: vi.fn(),
+  input: vi.fn(),
+  password: vi.fn(),
+  select: vi.fn(),
 }));
 
 const repository = vi.hoisted(() => ({
@@ -31,13 +49,9 @@ const registry = vi.hoisted(() => ({
   version: 3,
 }));
 
-vi.mock("../src/key.js", () => ({
-  createIdentity: vi.fn(),
-  currentRecipient: vi.fn(async () => "age1owner"),
-  identityFile: vi.fn(() => "/identity.txt"),
-  readIdentity: vi.fn(async () => "AGE-SECRET-KEY-OWNER"),
-  restoreIdentity: vi.fn(),
-}));
+vi.mock("@inquirer/prompts", () => promptMocks);
+
+vi.mock("../src/key.js", () => keyMocks);
 
 vi.mock("../src/repository.js", () => ({ findRepository: vi.fn(async () => repository) }));
 
@@ -105,6 +119,19 @@ describe("GitVaulty CLI option callbacks", () => {
       username: "alice",
       recipient: "age1owner",
     });
+  });
+
+  it("rejects an initialized repository before prompting for identity or username", async () => {
+    operationMocks.isInitialized.mockResolvedValueOnce(true);
+
+    await expect(createProgram().parseAsync([
+      "node", "gitvaulty", "init",
+    ])).rejects.toThrow("GitVaulty is already initialized.");
+
+    expect(keyMocks.readIdentity).not.toHaveBeenCalled();
+    expect(keyMocks.currentRecipient).not.toHaveBeenCalled();
+    expect(promptMocks.input).not.toHaveBeenCalled();
+    expect(operationMocks.initialize).not.toHaveBeenCalled();
   });
 
   it("passes repeated file options to materialize, clean, and status", async () => {

@@ -127,6 +127,10 @@ async function fileExists(file: string): Promise<boolean> {
   }
 }
 
+export async function isInitialized(repo: Repository): Promise<boolean> {
+  return fileExists(repo.registryFile);
+}
+
 async function atomicWrite(file: string, data: Buffer, mode = 0o600): Promise<void> {
   await ensureParent(file);
   const temporary = path.join(path.dirname(file), `.${path.basename(file)}.${process.pid}.${Date.now()}.tmp`);
@@ -143,7 +147,7 @@ export async function initialize(
   repo: Repository,
   user: { username: string; recipient: string },
 ): Promise<{ agentSkill: AgentSkillInstallResult }> {
-  if (await fileExists(repo.registryFile)) throw new GitVaultyError("GitVaulty is already initialized.");
+  if (await isInitialized(repo)) throw new GitVaultyError("GitVaulty is already initialized.");
   const owner = normalizeGitVaultyUser(user);
   await writeRegistry(repo, {
     version: 3,

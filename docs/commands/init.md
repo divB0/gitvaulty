@@ -11,11 +11,12 @@ npx gitvaulty init
 ## What it does
 
 1. Finds the root of the current Git repository.
-2. Loads your global age identity. If no identity exists, GitVaulty asks whether to create one.
-3. Prompts for your GitVaulty username. The default is derived from `git config user.email`, then `git config user.name`.
-4. Creates you as the first user and creates a default `team` group containing you.
-5. Writes an empty recipient registry and SOPS configuration.
-6. Installs a repository-scoped agent skill at `.agents/skills/gitvaulty/SKILL.md`.
+2. Stops immediately without prompting if `.gitvaulty/recipients.json` already exists.
+3. Loads your global age identity. If no identity exists, GitVaulty asks whether to create one.
+4. Prompts for your GitVaulty username. The default is derived from `git config user.email`, then `git config user.name`.
+5. Creates you as the first user and creates a default `team` group containing you.
+6. Writes an empty recipient registry and SOPS configuration.
+7. Installs a repository-scoped agent skill at `.agents/skills/gitvaulty/SKILL.md`.
 
 The initial registry is `.gitvaulty/recipients.json`:
 
@@ -52,7 +53,7 @@ Only your public age recipient is stored in the repository. A newly generated pr
 ## Important behavior
 
 - The command must run inside a Git repository.
-- It stops if `.gitvaulty/recipients.json` already exists.
+- It stops before any identity or username prompts if `.gitvaulty/recipients.json` already exists.
 - It does not create, import, encrypt, stage, or commit any secret files.
 - It does not run `git add` or modify `.gitignore`.
 - It creates the agent skill only when that exact file does not already exist.
