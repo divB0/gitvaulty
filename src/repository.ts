@@ -5,6 +5,7 @@ import { GitVaultyError } from "./errors.js";
 
 export interface Repository {
   root: string;
+  configFile: string;
   registryFile: string;
   sopsConfigFile: string;
   excludeFile: string;
@@ -24,6 +25,7 @@ export async function findRepository(cwd = process.cwd()): Promise<Repository> {
   const excludeRaw = await gitPath(cwd, "rev-parse", "--git-path", "info/exclude");
   return {
     root,
+    configFile: path.join(root, ".gitvaulty", "config.yaml"),
     registryFile: path.join(root, ".gitvaulty", "recipients.json"),
     sopsConfigFile: path.join(root, ".sops.yaml"),
     excludeFile: path.resolve(root, excludeRaw),

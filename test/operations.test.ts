@@ -52,6 +52,12 @@ describe("opaque native secret files", () => {
       "utf8",
     );
     expect(installed).toContain("name: gitvaulty");
+    expect(await readFile(repo.configFile, "utf8")).toBe([
+      "version: 1",
+      "agentSkill:",
+      "  mode: managed",
+      "",
+    ].join("\n"));
   });
 
   it("creates only new empty encrypted files", async () => {

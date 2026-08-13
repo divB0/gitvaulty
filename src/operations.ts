@@ -38,6 +38,7 @@ import { GitVaultyError, SecretFileConflictError, TrackedPlaintextError } from "
 import { normalizeUsername } from "./recipient.js";
 import { createEditTempSession } from "./edit-temp.js";
 import { installAgentSkill, type AgentSkillInstallResult } from "./agent-skill.js";
+import { ensureRepositoryConfig } from "./config.js";
 
 function portable(file: string): string { return file.split(path.sep).join("/"); }
 
@@ -149,6 +150,7 @@ export async function initialize(
 ): Promise<{ agentSkill: AgentSkillInstallResult }> {
   if (await isInitialized(repo)) throw new GitVaultyError("GitVaulty is already initialized.");
   const owner = normalizeGitVaultyUser(user);
+  await ensureRepositoryConfig(repo);
   await writeRegistry(repo, {
     version: 3,
     defaultGroup: "team",

@@ -51,7 +51,8 @@
     "@inquirer/prompts": "8.5.2",
     "age-encryption": "0.3.0",
     "commander": "15.0.0",
-    "cross-spawn": "7.0.6"
+    "cross-spawn": "7.0.6",
+    "yaml": "2.8.1"
   },
   "optionalDependencies": {
     "@clef-sh/sops-darwin-arm64": "3.12.2",

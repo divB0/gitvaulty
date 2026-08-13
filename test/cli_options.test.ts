@@ -32,6 +32,7 @@ const promptMocks = vi.hoisted(() => ({
 }));
 
 const repository = vi.hoisted(() => ({
+  configFile: "/repository/.gitvaulty/config.yaml",
   excludeFile: "/repository/.git/info/exclude",
   registryFile: "/repository/.gitvaulty/recipients.json",
   root: "/repository",
