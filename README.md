@@ -295,6 +295,20 @@ npm install --save-dev gitvaulty
 
 Then use `npx gitvaulty` as shown above or add shorter package scripts.
 
+### `npx` reports `uv_cwd`
+
+`npx` asks npm to read the current working directory before GitVaulty starts. If that directory was
+removed, or the operating system no longer permits access to it, npm can exit with
+`process.cwd failed` and `uv_cwd`. Move to an accessible directory and rerun the command:
+
+```sh
+cd ~
+npx gitvaulty key backup
+```
+
+Global key commands do not need to run inside a Git repository. If the error persists from an
+accessible directory, check that the terminal has permission to access that directory.
+
 ## Repository layout
 
 ```text
