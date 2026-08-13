@@ -33,6 +33,11 @@ npx gitvaulty init
 Initialization creates a `team` group containing you. New and imported files use `team` by default,
 so the normal workflow needs no access flags.
 
+It also installs `.agents/skills/gitvaulty/SKILL.md`. Compatible coding agents can discover this
+repository-scoped skill and learn to use `gitvaulty run` with only the files required for a task,
+without placing secret values in prompts or command arguments. An existing skill at that path is
+preserved.
+
 ## Command reference
 
 ### Files and workflows
@@ -271,6 +276,11 @@ termination signals; an uncatchable crash, power loss, or `SIGKILL` can still le
 
 Private-key variables are available to SOPS but removed from the child process environment.
 
+The skill installed by `gitvaulty init` teaches coding agents this workflow and warns them not to
+print, log, or inspect secret values unnecessarily. Agent instructions reduce accidental exposure;
+they are not a security sandbox. Use the agent harness or operating-system isolation when an agent
+must be technically prevented from reading plaintext available to its process.
+
 ## Supported files
 
 Whole-file encryption works with any regular file:
@@ -384,6 +394,7 @@ accessible directory, check that the terminal has permission to access that dire
 ```text
 .gitvaulty/recipients.json                    # public users, groups, and per-file access
 .sops.yaml                                    # generated public SOPS rules
+.agents/skills/gitvaulty/SKILL.md             # safe GitVaulty workflow for coding agents
 .env.gitvaulty                                # opaque encrypted .env bytes
 terraform/prod.tfvars.json.gitvaulty          # opaque encrypted Terraform bytes
 ```
