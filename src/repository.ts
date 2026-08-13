@@ -15,8 +15,12 @@ async function gitPath(cwd: string, ...args: string[]): Promise<string> {
   catch { throw new GitVaultyError("Run this command inside a Git repository."); }
 }
 
+export function normalizeGitPath(value: string, platformPath: Pick<typeof path, "resolve"> = path): string {
+  return platformPath.resolve(value);
+}
+
 export async function findRepository(cwd = process.cwd()): Promise<Repository> {
-  const root = await gitPath(cwd, "rev-parse", "--show-toplevel");
+  const root = normalizeGitPath(await gitPath(cwd, "rev-parse", "--show-toplevel"));
   const excludeRaw = await gitPath(cwd, "rev-parse", "--git-path", "info/exclude");
   return {
     root,
