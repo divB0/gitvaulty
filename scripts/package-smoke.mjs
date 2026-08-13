@@ -18,6 +18,17 @@ try {
   assert.equal(help.status, 0, help.stderr);
   assert.match(help.stdout, /Git-backed secrets for humans/);
 
+  const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+  const packed = spawnSync(npm, ["pack", "--dry-run", "--json", "--ignore-scripts"], { encoding: "utf8" });
+  assert.equal(packed.status, 0, packed.stderr);
+  const [packageReport] = JSON.parse(packed.stdout);
+  const packagedFiles = new Set(packageReport.files.map((file) => file.path));
+  for (const required of [
+    "dist/cli.js",
+    "dist/config.d.ts",
+    "skills/gitvaulty/SKILL.md",
+  ]) assert(packagedFiles.has(required), `npm package is missing ${required}`);
+
   if (process.platform !== "win32") {
     const inaccessibleParent = path.join(temporary, "inaccessible");
     const inaccessibleCwd = path.join(inaccessibleParent, "cwd");
