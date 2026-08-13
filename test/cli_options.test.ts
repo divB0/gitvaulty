@@ -135,6 +135,54 @@ describe("GitVaulty CLI option callbacks", () => {
     expect(operationMocks.initialize).not.toHaveBeenCalled();
   });
 
+  it("runs agent skill preflight for initialized repository commands", async () => {
+    operationMocks.isInitialized.mockResolvedValueOnce(true);
+    const agentSkillPreflight = vi.fn(async () => undefined);
+
+    await createProgram({ agentSkillPreflight }).parseAsync([
+      "node", "gitvaulty", "user", "list",
+    ]);
+
+    expect(agentSkillPreflight).toHaveBeenCalledWith(repository);
+  });
+
+  it("skips agent skill preflight for uninitialized repositories", async () => {
+    operationMocks.isInitialized.mockResolvedValueOnce(false);
+    const agentSkillPreflight = vi.fn(async () => undefined);
+
+    await createProgram({ agentSkillPreflight }).parseAsync([
+      "node", "gitvaulty", "user", "list",
+    ]);
+
+    expect(agentSkillPreflight).not.toHaveBeenCalled();
+  });
+
+  it("does not inspect repositories for global key commands", async () => {
+    const agentSkillPreflight = vi.fn(async () => undefined);
+
+    await createProgram({ agentSkillPreflight }).parseAsync([
+      "node", "gitvaulty", "key", "public",
+    ]);
+
+    expect(agentSkillPreflight).not.toHaveBeenCalled();
+  });
+
+  it("runs agent skill preflight after successful initialization", async () => {
+    operationMocks.isInitialized.mockResolvedValueOnce(false);
+    promptMocks.input.mockResolvedValueOnce("owner");
+    const agentSkillPreflight = vi.fn(async () => undefined);
+
+    await createProgram({ agentSkillPreflight }).parseAsync([
+      "node", "gitvaulty", "init",
+    ]);
+
+    expect(operationMocks.initialize).toHaveBeenCalledWith(repository, {
+      username: "owner",
+      recipient: "age1owner",
+    });
+    expect(agentSkillPreflight).toHaveBeenCalledWith(repository);
+  });
+
   it("passes repeated file options to materialize, clean, and status", async () => {
     const arguments_ = ["--file", ".env", "--file", "config/secrets.yaml"];
     await createProgram().parseAsync(["node", "gitvaulty", "materialize", ...arguments_]);

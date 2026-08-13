@@ -37,7 +37,6 @@ import { execute, executeChecked } from "./process.js";
 import { GitVaultyError, SecretFileConflictError, TrackedPlaintextError } from "./errors.js";
 import { normalizeUsername } from "./recipient.js";
 import { createEditTempSession } from "./edit-temp.js";
-import { installAgentSkill, type AgentSkillInstallResult } from "./agent-skill.js";
 import { ensureRepositoryConfig } from "./config.js";
 
 function portable(file: string): string { return file.split(path.sep).join("/"); }
@@ -147,7 +146,7 @@ async function atomicWrite(file: string, data: Buffer, mode = 0o600): Promise<vo
 export async function initialize(
   repo: Repository,
   user: { username: string; recipient: string },
-): Promise<{ agentSkill: AgentSkillInstallResult }> {
+): Promise<void> {
   if (await isInitialized(repo)) throw new GitVaultyError("GitVaulty is already initialized.");
   const owner = normalizeGitVaultyUser(user);
   await ensureRepositoryConfig(repo);
@@ -158,7 +157,6 @@ export async function initialize(
     groups: [{ name: "team", members: [owner.username] }],
     files: [],
   });
-  return { agentSkill: await installAgentSkill(repo.root) };
 }
 
 export interface FileAccess { groups?: string[]; users?: string[] }

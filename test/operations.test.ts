@@ -46,12 +46,7 @@ describe("opaque native secret files", () => {
     }
   });
 
-  it("installs the repository agent skill during initialization", async () => {
-    const installed = await readFile(
-      path.join(root, ".agents", "skills", "gitvaulty", "SKILL.md"),
-      "utf8",
-    );
-    expect(installed).toContain("name: gitvaulty");
+  it("creates the managed repository configuration during initialization", async () => {
     expect(await readFile(repo.configFile, "utf8")).toBe([
       "version: 1",
       "agentSkill:",

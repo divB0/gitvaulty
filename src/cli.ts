@@ -40,6 +40,12 @@ import {
 } from "./registry.js";
 import { GitVaultyError, TrackedPlaintextError } from "./errors.js";
 import { cleanupAbandonedEditDirectories } from "./edit-temp.js";
+import {
+  agentSkillStatus,
+  installAgentSkill,
+  type AgentSkillStatus,
+} from "./agent-skill.js";
+import { readRepositoryConfig, writeAgentSkillMode } from "./config.js";
 
 const packageManifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version?: unknown };
 if (typeof packageManifest.version !== "string") throw new Error("package.json must contain a version string.");
@@ -120,6 +126,59 @@ function runFiles(options: RunCommandOptions): string[] {
 
 type ConfirmTrackedImport = (options: { message: string; default: boolean }) => Promise<boolean>;
 
+export type AgentSkillDecision = "install" | "skip" | "disable";
+
+export interface AgentSkillPreflightOptions {
+  interactive?: boolean;
+  decide?: (status: Exclude<AgentSkillStatus, "current">) => Promise<AgentSkillDecision>;
+  writeOutput?: (message: string) => void;
+  writeWarning?: (message: string) => void;
+}
+
+async function promptForAgentSkill(status: Exclude<AgentSkillStatus, "current">): Promise<AgentSkillDecision> {
+  return select<AgentSkillDecision>({
+    message: status === "missing"
+      ? "GitVaulty's repository agent skill is missing"
+      : `The repository agent skill differs from GitVaulty ${packageVersion}; replacing it overwrites local customizations`,
+    choices: [
+      { name: status === "missing" ? "Install agent skill" : "Replace with this GitVaulty version", value: "install" },
+      { name: "Skip this time", value: "skip" },
+      { name: "Don't ask again in this repository", value: "disable" },
+    ],
+  });
+}
+
+export async function ensureRepositoryAgentSkill(
+  repo: Repository,
+  options: AgentSkillPreflightOptions = {},
+): Promise<void> {
+  if ((await readRepositoryConfig(repo)).agentSkill.mode === "disabled") return;
+  const status = await agentSkillStatus(repo.root);
+  if (status === "current") return;
+
+  const writeOutput = options.writeOutput ?? ((message: string) => { process.stdout.write(message); });
+  const writeWarning = options.writeWarning ?? ((message: string) => { process.stderr.write(message); });
+  const interactive = options.interactive ?? Boolean(process.stdin.isTTY && process.stdout.isTTY);
+  if (!interactive) {
+    writeWarning(
+      `Warning: GitVaulty's repository agent skill is ${status}. Run a GitVaulty command interactively to manage it, `
+      + "or set agentSkill.mode to disabled in .gitvaulty/config.yaml.\n",
+    );
+    return;
+  }
+
+  const decision = await (options.decide ?? promptForAgentSkill)(status);
+  if (decision === "skip") return;
+  if (decision === "disable") {
+    await writeAgentSkillMode(repo, "disabled");
+    writeOutput("Disabled agent skill management for this repository. Commit .gitvaulty/config.yaml.\n");
+    return;
+  }
+
+  const result = await installAgentSkill(repo.root, { replace: true });
+  writeOutput(`${result === "updated" ? "Updated" : "Installed"} agent skill at .agents/skills/gitvaulty/SKILL.md.\n`);
+}
+
 export async function importWithTrackedPrompt(
   repo: Repository,
   requested: string,
@@ -150,8 +209,16 @@ export async function importWithTrackedPrompt(
   }
 }
 
-export function createProgram(): Command {
+export function createProgram(options: {
+  agentSkillPreflight?: (repo: Repository) => Promise<void>;
+} = {}): Command {
   const program = new Command().name("gitvaulty").description("Git-backed secrets for humans.").version(packageVersion).enablePositionalOptions();
+  const agentSkillPreflight = options.agentSkillPreflight ?? ensureRepositoryAgentSkill;
+  const preparedRepository = async (): Promise<Repository> => {
+    const repo = await findRepository();
+    if (await isInitialized(repo)) await agentSkillPreflight(repo);
+    return repo;
+  };
 
   program.command("init").description("Initialize GitVaulty in this repository").action(async () => {
     const repo = await findRepository();
@@ -161,16 +228,14 @@ export function createProgram(): Command {
       try { normalizeUsername(value); return true; }
       catch (error) { return (error as Error).message; }
     } });
-    const result = await initialize(repo, { username: normalizeUsername(username), recipient });
+    await initialize(repo, { username: normalizeUsername(username), recipient });
     process.stdout.write("GitVaulty initialized.\n");
-    process.stdout.write(result.agentSkill === "installed"
-      ? "Installed agent skill at .agents/skills/gitvaulty/SKILL.md.\n"
-      : "Preserved existing agent skill at .agents/skills/gitvaulty/SKILL.md.\n");
+    await agentSkillPreflight(repo);
   });
 
   addAccessOptions(program.command("create <path>").description("Create an encrypted native file")).action(async (requested: string, options: AccessCommandOptions) => {
+    const repo = await preparedRepository();
     await ensureCliIdentity();
-    const repo = await findRepository();
     const created = await createSecretFile(repo, requested, accessOptions(options));
     await editSecretFile(repo, created.file);
     process.stdout.write(`Created ${created.file}.gitvaulty.\n`);
@@ -180,8 +245,8 @@ export function createProgram(): Command {
     .description("Import an existing plaintext file and keep it locally")
     .option("--update", "replace an existing encrypted file with the current plaintext"))
     .action(async (requested: string, options: ImportCommandOptions) => {
+    const repo = await preparedRepository();
     await ensureCliIdentity();
-    const repo = await findRepository();
     if (options.update && (options.group.length > 0 || options.user.length > 0)) {
       throw new GitVaultyError("Use `gitvaulty access <path>` to change access for an existing file.");
     }
@@ -191,8 +256,8 @@ export function createProgram(): Command {
   });
 
   addAccessOptions(program.command("access <path>").description("Change who can access an encrypted file")).action(async (requested: string, options: AccessCommandOptions) => {
+    const repo = await preparedRepository();
     await ensureCliIdentity();
-    const repo = await findRepository();
     const registry = await readRegistry(repo);
     const provided = accessOptions(options);
     let groups = provided.groups;
@@ -216,8 +281,8 @@ export function createProgram(): Command {
   });
 
   program.command("edit <path>").description("Edit an encrypted file by its plaintext path").action(async (file: string) => {
+    const repo = await preparedRepository();
     await ensureCliIdentity();
-    const repo = await findRepository();
     const [status] = await statusSecretFiles(repo, [file]);
     let resolution: "error" | "use-local" | "discard-local" = "error";
     if (status?.state === "modified") {
@@ -243,21 +308,24 @@ export function createProgram(): Command {
   );
 
   addFileOptions(program.command("materialize").description("Create persistent local plaintext files")).action(async (options: FileCommandOptions) => {
+    const repo = await preparedRepository();
     await ensureCliIdentity();
-    const created = await materializeSecretFiles(await findRepository(), options.file);
+    const created = await materializeSecretFiles(repo, options.file);
     process.stdout.write(created.length ? `${created.map((file) => `Materialized ${file}.`).join("\n")}\n` : "All selected files are already materialized.\n");
   });
 
   addFileOptions(program.command("clean").description("Remove unchanged materialized plaintext files")).action(async (options: FileCommandOptions) => {
+    const repo = await preparedRepository();
     await ensureCliIdentity();
-    const result = await cleanSecretFiles(await findRepository(), options.file);
+    const result = await cleanSecretFiles(repo, options.file);
     for (const file of result.removed) process.stdout.write(`Removed ${file}.\n`);
     for (const file of result.retained) process.stderr.write(`Kept ${file.file}: ${file.state}.\n`);
   });
 
   addFileOptions(program.command("status").description("Show plaintext materialization status")).action(async (options: FileCommandOptions) => {
+    const repo = await preparedRepository();
     await ensureCliIdentity();
-    for (const file of await statusSecretFiles(await findRepository(), options.file)) {
+    for (const file of await statusSecretFiles(repo, options.file)) {
       process.stdout.write(`${file.state.padEnd(8)} ${file.file}\n`);
     }
   });
@@ -270,8 +338,9 @@ export function createProgram(): Command {
     .passThroughOptions()
     .action(async (command: string[], options: RunCommandOptions) => {
       const files = runFiles(options);
+      const repo = await preparedRepository();
       await ensureCliIdentity();
-      const result = await runWithFiles(await findRepository(), files, command);
+      const result = await runWithFiles(repo, files, command);
       for (const file of result.retained) process.stderr.write(`Warning: ${file} changed while the command ran and was kept.\n`);
       process.exitCode = result.code;
     });
@@ -298,14 +367,15 @@ export function createProgram(): Command {
 
   const user = program.command("user").description("Manage users");
   user.command("register <username>").description("Register your public recipient without granting access").action(async (username: string) => {
+    const repo = await preparedRepository();
     const recipient = await ensureCliIdentity();
     const normalizedUsername = normalizeUsername(username);
-    await registerUser(await findRepository(), { username: normalizedUsername, recipient });
+    await registerUser(repo, { username: normalizedUsername, recipient });
     process.stdout.write(`Registered ${normalizedUsername} with no access. Commit .gitvaulty/recipients.json for review.\n`);
   });
   user.command("add").description("Add a user to groups").action(async () => {
+    const repo = await preparedRepository();
     await ensureCliIdentity();
-    const repo = await findRepository();
     const registry = await readRegistry(repo);
     const publicKey = await input({ message: "Public age recipient", validate: (value) => {
       try { parseRecipient(value); return true; }
@@ -326,11 +396,11 @@ export function createProgram(): Command {
     process.stdout.write(`Added ${normalizedUsername}.\n`);
   });
   user.command("list").description("List users and groups").action(async () => {
-    process.stdout.write(formatUsers(await readRegistry(await findRepository())));
+    process.stdout.write(formatUsers(await readRegistry(await preparedRepository())));
   });
   user.command("remove").description("Remove a user's file access").action(async () => {
+    const repo = await preparedRepository();
     await ensureCliIdentity();
-    const repo = await findRepository();
     const registry = await readRegistry(repo);
     const mine = await currentRecipient();
     const candidates = registry.users.filter((item) => item.recipient !== mine);
@@ -343,27 +413,31 @@ export function createProgram(): Command {
 
   const group = program.command("group").description("Manage access groups");
   group.command("create <name>").description("Create a group").action(async (name: string) => {
+    const repo = await preparedRepository();
     await ensureCliIdentity();
     const normalized = normalizeGroupName(name);
-    await createGroup(await findRepository(), normalized);
+    await createGroup(repo, normalized);
     process.stdout.write(`Created group ${normalized}.\n`);
   });
   group.command("add <group> <username>").description("Add a user to a group").action(async (name: string, username: string) => {
+    const repo = await preparedRepository();
     await ensureCliIdentity();
-    await addGroupMember(await findRepository(), name, username);
+    await addGroupMember(repo, name, username);
     process.stdout.write(`Added ${normalizeUsername(username)} to ${normalizeGroupName(name)}.\n`);
   });
   group.command("remove <group> <username>").description("Remove a user from a group and rotate affected files").action(async (name: string, username: string) => {
+    const repo = await preparedRepository();
     await ensureCliIdentity();
-    await removeGroupMember(await findRepository(), name, username);
+    await removeGroupMember(repo, name, username);
     process.stdout.write(`Removed ${normalizeUsername(username)} from ${normalizeGroupName(name)}.\n`);
   });
   group.command("list").description("List groups and members").action(async () => {
-    process.stdout.write(formatGroups(await readRegistry(await findRepository())));
+    process.stdout.write(formatGroups(await readRegistry(await preparedRepository())));
   });
   group.command("delete <name>").description("Delete an unused group").action(async (name: string) => {
+    const repo = await preparedRepository();
     await ensureCliIdentity();
-    await deleteGroup(await findRepository(), name);
+    await deleteGroup(repo, name);
     process.stdout.write(`Deleted group ${normalizeGroupName(name)}.\n`);
   });
   return program;
