@@ -158,8 +158,11 @@ export function createProgram(): Command {
       try { normalizeUsername(value); return true; }
       catch (error) { return (error as Error).message; }
     } });
-    await initialize(repo, { username: normalizeUsername(username), recipient });
+    const result = await initialize(repo, { username: normalizeUsername(username), recipient });
     process.stdout.write("GitVaulty initialized.\n");
+    process.stdout.write(result.agentSkill === "installed"
+      ? "Installed agent skill at .agents/skills/gitvaulty/SKILL.md.\n"
+      : "Preserved existing agent skill at .agents/skills/gitvaulty/SKILL.md.\n");
   });
 
   addAccessOptions(program.command("create <path>").description("Create an encrypted native file")).action(async (requested: string, options: AccessCommandOptions) => {

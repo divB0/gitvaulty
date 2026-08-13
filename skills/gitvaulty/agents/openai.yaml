@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitVaulty"
+  short_description: "Use repository secrets safely with GitVaulty"
+  default_prompt: "Use GitVaulty to provide only the secrets required for this task without exposing their values."

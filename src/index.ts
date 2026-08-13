@@ -2,6 +2,11 @@ export { GitVaultyError, SecretFileConflictError, TrackedPlaintextError } from "
 export { normalizeUsername, parseRecipient } from "./recipient.js";
 export { findRepository, type Repository } from "./repository.js";
 export {
+  AGENT_SKILL_RELATIVE_FILE,
+  installAgentSkill,
+  type AgentSkillInstallResult,
+} from "./agent-skill.js";
+export {
   cleanupAbandonedEditDirectories,
   DEFAULT_EDIT_TEMP_GRACE_PERIOD_MS,
   type EditTempCleanupOptions,

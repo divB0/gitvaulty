@@ -44,6 +44,14 @@ describe("opaque native secret files", () => {
     }
   });
 
+  it("installs the repository agent skill during initialization", async () => {
+    const installed = await readFile(
+      path.join(root, ".agents", "skills", "gitvaulty", "SKILL.md"),
+      "utf8",
+    );
+    expect(installed).toContain("name: gitvaulty");
+  });
+
   it("creates only new empty encrypted files", async () => {
     expect(await createSecretFile(repo, "secrets/custom.bin")).toEqual({ file: "secrets/custom.bin" });
     const encrypted = path.join(root, "secrets", "custom.bin.gitvaulty");
