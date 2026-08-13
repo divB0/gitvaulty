@@ -2,6 +2,18 @@
 
 Edit complete GitVaulty-encrypted files in VS Code's native text editor.
 
+## Install
+
+[Install GitVaulty from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty),
+search for **GitVaulty** in VS Code's Extensions view, or run:
+
+```sh
+code --install-extension divb0.gitvaulty
+```
+
+Native packages are available for macOS (Apple Silicon and Intel), Linux (ARM64 and x64), and
+Windows x64.
+
 ## What it does
 
 Open any `*.gitvaulty` file from the Explorer. GitVaulty automatically decrypts it into a native
@@ -78,12 +90,11 @@ platform's SOPS executable and its license into the VSIX.
 
 ## Marketplace releases
 
-The extension uses the permanent Marketplace identity `divb0.gitvaulty`. Before the first release:
+The extension uses the permanent Marketplace identity `divb0.gitvaulty`. Before a release:
 
-1. Create the `divb0` publisher in the Visual Studio Marketplace publisher portal.
-2. Configure Marketplace trusted publishing for GitHub repository `divB0/gitvaulty` and workflow
-   `.github/workflows/vscode-release.yml`.
-3. Confirm that `vscode/package.json` and `vscode/CHANGELOG.md` contain the intended version.
+1. Create a Marketplace Personal Access Token for publisher `divB0` and save it as the `VSCE_PAT`
+   GitHub Actions repository secret.
+2. Confirm that `vscode/package.json` and `vscode/CHANGELOG.md` contain the intended version.
 
 The **VS Code extension release** GitHub workflow builds and tests native packages for macOS arm64
 and x64, Linux arm64 and x64, and Windows x64. A manual run publishes a prerelease by default. A tag
@@ -95,8 +106,8 @@ git push origin vscode-v0.1.0
 ```
 
 The workflow verifies that the tag version exactly matches `vscode/package.json` before publishing
-all five packages with short-lived OIDC credentials. Marketplace version numbers cannot be reused:
-after publishing a prerelease, increment `vscode/package.json` before publishing a normal release.
+all five packages with the `VSCE_PAT` secret. Marketplace version numbers cannot be reused: after
+publishing a prerelease, increment `vscode/package.json` before publishing a normal release.
 
 For a local one-off inspection from the extension directory:
 

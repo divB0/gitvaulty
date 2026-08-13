@@ -130,6 +130,16 @@ The updated encrypted file is decrypted and verified before replacing the previo
 
 ### VS Code
 
+[Install GitVaulty from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty),
+search for **GitVaulty** in VS Code's Extensions view, or run:
+
+```sh
+code --install-extension divb0.gitvaulty
+```
+
+The Marketplace provides native packages for macOS (Apple Silicon and Intel), Linux (ARM64 and
+x64), and Windows x64.
+
 The GitVaulty VS Code extension lets you double-click a `*.gitvaulty` file and edit its decrypted
 contents in a native text editor. The virtual document keeps the plaintext filename for syntax
 highlighting and compatible language features. Save and Auto Save re-encrypt, verify, and atomically

@@ -76,9 +76,6 @@ jobs:
     name: Publish to Visual Studio Marketplace
     needs: package
     runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -98,12 +95,14 @@ jobs:
         working-directory: vscode
         env:
           PRERELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || false }}
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
+          test -n "$VSCE_PAT"
           shopt -s nullglob
           packages=(vsix/*.vsix)
           test "${#packages[@]}" -eq 5
           for package in "${packages[@]}"; do
-            args=(publish --oidc --packagePath "$package")
+            args=(publish --packagePath "$package")
             if [[ "$PRERELEASE" == "true" ]]; then args+=(--pre-release); fi
             npx vsce "${args[@]}"
           done
