@@ -142,15 +142,23 @@ code --install-extension divb0.gitvaulty
 The Marketplace provides native packages for macOS (Apple Silicon and Intel), Linux (ARM64 and
 x64), and Windows x64.
 
-The GitVaulty VS Code extension lets you double-click a `*.gitvaulty` file and edit its decrypted
-contents in a native text editor. The virtual document keeps the plaintext filename for syntax
-highlighting and compatible language features. Save and Auto Save re-encrypt, verify, and atomically
-replace only the ciphertext; GitVaulty does not materialize a plaintext repository file.
+To edit an encrypted file:
+
+1. Open the local GitVaulty repository as a trusted VS Code workspace.
+2. Select a `*.gitvaulty` file in the Explorer.
+3. Edit the decrypted virtual document normally.
+4. Save or use Auto Save to re-encrypt, verify, and atomically replace the ciphertext.
+
+The virtual document keeps the plaintext filename for syntax highlighting and compatible language
+features. GitVaulty does not materialize a plaintext repository file.
 
 The extension detects ciphertext changes and refuses to overwrite a newer encrypted version. Native
 editing means decrypted text is visible to VS Code, compatible extensions and language servers, and
 possibly VS Code's private Hot Exit recovery storage. Use `gitvaulty edit` when that security boundary
 is not appropriate.
+
+See the [full VS Code guide](docs/vscode.md) for setup, commands, conflict handling, security details,
+and troubleshooting.
 
 ## Local development
 
