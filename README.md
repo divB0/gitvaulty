@@ -18,6 +18,8 @@ person keeps their own private age identity; there is no shared team decryption 
 GitVaulty is available on [npm](https://www.npmjs.com/package/gitvaulty) and requires Node.js 20 or
 newer.
 
+Evaluating environment-secret tools? See [GitVaulty compared with dotenvx](docs/comparisons/dotenvx.md).
+
 ## Quick start
 
 Initialize GitVaulty in a Git repository:
