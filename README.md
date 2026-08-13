@@ -390,7 +390,11 @@ terraform/prod.tfvars.json.gitvaulty          # opaque encrypted Terraform bytes
 
 ## Comparisons
 
-Evaluating environment-secret tools? See [GitVaulty compared with dotenvx](https://github.com/divB0/gitvaulty/blob/main/docs/comparisons/dotenvx.md).
+Evaluating repository and environment-secret tools?
+
+- [GitVaulty compared with Agebox](https://github.com/divB0/gitvaulty/blob/main/docs/comparisons/agebox.md)
+- [GitVaulty compared with Cottage](https://github.com/divB0/gitvaulty/blob/main/docs/comparisons/cottage.md)
+- [GitVaulty compared with dotenvx](https://github.com/divB0/gitvaulty/blob/main/docs/comparisons/dotenvx.md)
 
 ## License
 
