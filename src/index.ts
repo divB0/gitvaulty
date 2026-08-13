@@ -3,8 +3,10 @@ export { normalizeUsername, parseRecipient } from "./recipient.js";
 export { findRepository, type Repository } from "./repository.js";
 export {
   AGENT_SKILL_RELATIVE_FILE,
+  agentSkillStatus,
   installAgentSkill,
   type AgentSkillInstallResult,
+  type AgentSkillStatus,
 } from "./agent-skill.js";
 export {
   cleanupAbandonedEditDirectories,
