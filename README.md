@@ -33,6 +33,40 @@ npx gitvaulty init
 Initialization creates a `team` group containing you. New and imported files use `team` by default,
 so the normal workflow needs no access flags.
 
+## Command reference
+
+### Files and workflows
+
+| Command | Purpose |
+| --- | --- |
+| [`gitvaulty init`](docs/commands/init.md) | Initialize GitVaulty in a Git repository. |
+| [`gitvaulty create`](docs/commands/create.md) | Create and edit a new encrypted file. |
+| [`gitvaulty import`](docs/commands/import.md) | Encrypt an existing plaintext file or update existing ciphertext. |
+| [`gitvaulty access`](docs/commands/access.md) | Replace a file's group and direct-user access policy. |
+| [`gitvaulty edit`](docs/commands/edit.md) | Edit a file through a private temporary plaintext copy. |
+| [`gitvaulty materialize`](docs/commands/materialize.md) | Create persistent local plaintext copies. |
+| [`gitvaulty clean`](docs/commands/clean.md) | Remove unchanged materialized plaintext files. |
+| [`gitvaulty status`](docs/commands/status.md) | Compare local plaintext with encrypted sources. |
+| [`gitvaulty run`](docs/commands/run.md) | Materialize files while a child command runs. |
+
+### Keys, users, and groups
+
+- [`gitvaulty key`](docs/commands/key.md) — Manage your global age identity:
+  [`create`](docs/commands/key-create.md),
+  [`public`](docs/commands/key-public.md),
+  [`backup`](docs/commands/key-backup.md), and
+  [`restore`](docs/commands/key-restore.md).
+- [`gitvaulty user`](docs/commands/user.md) — Manage registered repository users:
+  [`add`](docs/commands/user-add.md),
+  [`list`](docs/commands/user-list.md), and
+  [`remove`](docs/commands/user-remove.md).
+- [`gitvaulty group`](docs/commands/group.md) — Manage access groups:
+  [`create`](docs/commands/group-create.md),
+  [`add`](docs/commands/group-add.md),
+  [`remove`](docs/commands/group-remove.md),
+  [`list`](docs/commands/group-list.md), and
+  [`delete`](docs/commands/group-delete.md).
+
 ### Migrate an existing file
 
 If `.env` already exists, import it:
