@@ -5,7 +5,11 @@
 <h1 align="center">gitvaulty</h1>
 
 <p align="center">
-  <strong>Git-backed secrets for humans.</strong>
+  <strong>Git-backed secret access control for teams and agents.</strong>
+</p>
+
+<p align="center">
+  Open source. No hosting required.
 </p>
 
 GitVaulty encrypts complete files with SOPS and age so they can live safely in Git. Filenames,
