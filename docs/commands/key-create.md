@@ -16,9 +16,13 @@ The command uses `GITVAULTY_AGE_KEY_FILE` or `SOPS_AGE_KEY_FILE` when configured
 
 `key create` uses exclusive file creation and refuses to overwrite an existing identity file. Use [`gitvaulty key restore`](key-restore.md) if you intentionally need to replace the stored identity.
 
-This command does not initialize a repository or add the public recipient to an existing repository. Use [`gitvaulty init`](init.md) for a new repository, or give the output of [`gitvaulty key public`](key-public.md) to an existing member who can run [`gitvaulty user add`](user-add.md).
+This command does not initialize a repository or add the public recipient to an existing repository.
+Use [`gitvaulty init`](init.md) for a new repository, or run
+[`gitvaulty user register <username>`](user-register.md) to commit the public recipient to an
+existing repository without granting access.
 
 ## Related commands
 
 - [`gitvaulty key backup`](key-backup.md)
 - [`gitvaulty key public`](key-public.md)
+- [`gitvaulty user register`](user-register.md)

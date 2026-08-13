@@ -2,6 +2,11 @@
 
 Register another person's public age recipient and add that user to one or more groups.
 
+This is an authorized-member shortcut for cases where you already received the public recipient
+out of band. The preferred reviewable onboarding flow is for the new developer to run
+[`gitvaulty user register`](user-register.md), commit that public registration, and have an existing
+member grant access with [`gitvaulty group add`](group-add.md).
+
 ## Usage
 
 ```sh
@@ -26,6 +31,7 @@ The command does not stage or commit modified files.
 
 ## Related commands
 
+- [`gitvaulty user register`](user-register.md)
 - [`gitvaulty user list`](user-list.md)
 - [`gitvaulty group add`](group-add.md)
 - [`gitvaulty user remove`](user-remove.md)

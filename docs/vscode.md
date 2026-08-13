@@ -24,17 +24,18 @@ Open a local Git repository that has already been initialized with GitVaulty:
 npx gitvaulty init
 ```
 
-If you are joining an existing repository, restore your private age identity or ask an existing
-member to add your public recipient:
+If you are joining an existing repository, restore your private age identity or register a new
+identity's public recipient without access:
 
 ```sh
 npx gitvaulty key restore
-# Or print a new identity's public recipient to send to the repository owner:
-npx gitvaulty key public
+# Or register a new identity on your branch:
+npx gitvaulty user register alice
 ```
 
-The repository owner can then run `npx gitvaulty user add` and select the groups you should join.
-Private age keys must never be shared.
+Commit `.gitvaulty/recipients.json` for review. An existing authorized developer can then run
+`npx gitvaulty group add team alice`, commit the updated registry and ciphertext, and merge the
+access grant. Private age keys must never be shared.
 
 GitVaulty decrypts repository secrets, so VS Code must trust the workspace. The extension works with
 local folders and does not support virtual workspaces.
@@ -111,7 +112,7 @@ npx gitvaulty user list
 
 If this machine does not have your identity, restore its private backup with
 `npx gitvaulty key restore`. If your public recipient is absent from the repository, ask an existing
-member to add it with `npx gitvaulty user add`.
+member to review a `npx gitvaulty user register <username>` commit and grant the appropriate group.
 
 ### The encrypted file changed while editing
 

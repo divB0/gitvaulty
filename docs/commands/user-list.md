@@ -25,6 +25,7 @@ The output intentionally does not include public recipients or per-file access. 
 
 ## Related commands
 
+- [`gitvaulty user register`](user-register.md)
 - [`gitvaulty user add`](user-add.md)
 - [`gitvaulty user remove`](user-remove.md)
 - [`gitvaulty group list`](group-list.md)

@@ -26,6 +26,7 @@ The command does not stage or commit modified files.
 
 ## Related commands
 
+- [`gitvaulty user register`](user-register.md)
 - [`gitvaulty user add`](user-add.md)
 - [`gitvaulty group remove`](group-remove.md)
 - [`gitvaulty group list`](group-list.md)

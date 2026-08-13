@@ -22,21 +22,184 @@ person keeps their own private age identity; there is no shared team decryption 
 GitVaulty is available on [npm](https://www.npmjs.com/package/gitvaulty) and requires Node.js 20 or
 newer.
 
+## Contents
+
+- [Quick start](#quick-start)
+- [Common workflows](#common-workflows)
+- [Command reference](#command-reference)
+- [Migrate an existing file](#migrate-an-existing-file)
+- [Create a new file](#create-a-new-file)
+- [Edit encrypted files](#edit)
+- [VS Code](#vs-code)
+- [Local development](#local-development)
+- [Ephemeral files while running a command](#ephemeral-files-while-running-a-command)
+- [Supported files](#supported-files)
+- [Keys, users, and groups](#keys-users-and-groups)
+- [Install in a project](#install-in-a-project)
+- [Repository layout](#repository-layout)
+- [Comparisons](#comparisons)
+
 ## Quick start
 
-Initialize GitVaulty in a Git repository:
+Run these commands inside an existing Git repository. Initialize GitVaulty first:
 
 ```sh
 npx gitvaulty init
 ```
 
 Initialization creates a `team` group containing you. New and imported files use `team` by default,
-so the normal workflow needs no access flags.
+so the normal workflow needs no access flags. It also creates the public recipient registry and
+SOPS configuration.
+
+Create and encrypt a file:
+
+```sh
+npx gitvaulty create .env
+```
+
+GitVaulty opens a private temporary `.env` in your editor and stores its contents as
+`.env.gitvaulty`; it never creates a repository plaintext file. Save the file, close the editor,
+and commit the encrypted project state:
+
+```sh
+git add .gitvaulty .sops.yaml .agents .env.gitvaulty
+git commit -m "chore: initialize GitVaulty"
+```
+
+Never commit the plaintext `.env`. If the plaintext already exists, use
+`npx gitvaulty import .env` instead of `create`.
 
 It also installs `.agents/skills/gitvaulty/SKILL.md`. Compatible coding agents can discover this
 repository-scoped skill and learn to use `gitvaulty run` with only the files required for a task,
 without placing secret values in prompts or command arguments. An existing skill at that path is
 preserved.
+
+### Add a new developer
+
+On their own branch, the new developer registers their public recipient without receiving access:
+
+```sh
+npx gitvaulty user register alice
+git add .gitvaulty/recipients.json
+git commit -m "chore: register alice's GitVaulty key"
+```
+
+The command creates a private age identity when needed, but commits only its public `age1...`
+recipient. Alice opens a pull request with that commit. Her private `AGE-SECRET-KEY-...` identity
+must never be shared or committed.
+
+After reviewing Alice's registration, a developer who already has access checks out the commit and
+adds her to the default group:
+
+```sh
+npx gitvaulty group add team alice
+git add .gitvaulty/recipients.json .sops.yaml
+git add -u -- '*.gitvaulty'
+git commit -m "chore: grant alice team access"
+```
+
+`group add` re-encrypts every affected file for the updated group. Alice can decrypt those files
+after the access commit is merged and pulled. The public-key commit and access-grant commit are
+separate so an existing authorized developer explicitly approves access.
+
+## Common workflows
+
+### Import an existing plaintext file
+
+```sh
+npx gitvaulty import .env
+git add .env.gitvaulty .gitvaulty/recipients.json .sops.yaml
+git commit -m "chore: encrypt development environment"
+```
+
+The plaintext remains available only in the current clone and is added to Git's clone-local exclude
+file. If it was already tracked, rotate its secrets even if you later remove it from Git history.
+
+### Create another encrypted file
+
+```sh
+npx gitvaulty create config/secrets.yaml
+git add config/secrets.yaml.gitvaulty .gitvaulty/recipients.json .sops.yaml
+git commit -m "chore: add encrypted service configuration"
+```
+
+Use `create` when the plaintext path does not exist and `import` when it does.
+
+### Edit an encrypted file
+
+```sh
+npx gitvaulty edit config/secrets.yaml
+git add config/secrets.yaml.gitvaulty
+git commit -m "chore: update service configuration"
+```
+
+Always pass the logical plaintext path, without the `.gitvaulty` suffix.
+
+### Materialize files for local development
+
+```sh
+npx gitvaulty materialize -f .env -f config/secrets.yaml
+npx gitvaulty status
+npx gitvaulty clean
+```
+
+`materialize` creates private local plaintext copies. `clean` removes only unchanged copies that
+still match their ciphertext.
+
+### Expose files only while a command runs
+
+```sh
+npx gitvaulty run -f .env -- npm start
+```
+
+Use `--all` instead of repeatable `--file` options when the command needs every file you can access.
+GitVaulty removes unchanged plaintext files created by that invocation when the command exits.
+
+### Create and use a narrower access group
+
+```sh
+npx gitvaulty group create production
+npx gitvaulty group add production alice
+npx gitvaulty create .env.production --group production
+```
+
+Commit `.gitvaulty/recipients.json`, `.sops.yaml`, and every ciphertext changed by the membership or
+file-policy update.
+
+### Change who can access an existing file
+
+```sh
+npx gitvaulty access .env.production
+```
+
+The interactive command selects groups first and direct-user exceptions second. For automation,
+replace the complete policy explicitly:
+
+```sh
+npx gitvaulty access .env.production --group production --user alice
+```
+
+### Inspect users and groups
+
+```sh
+npx gitvaulty user list
+npx gitvaulty group list
+```
+
+Run `npx gitvaulty access <path>` without flags to inspect and interactively update one file's
+policy.
+
+### Offboard a developer
+
+```sh
+npx gitvaulty user remove
+git add .gitvaulty/recipients.json .sops.yaml
+git add -u -- '*.gitvaulty'
+git commit -m "chore: revoke GitVaulty access"
+```
+
+Removing a user re-encrypts affected files without their recipient. It cannot revoke plaintext or
+historical ciphertext they already copied, so rotate every external credential they knew.
 
 ## Command reference
 
@@ -54,7 +217,7 @@ preserved.
 | [`gitvaulty status`](docs/commands/status.md) | Compare local plaintext with encrypted sources. |
 | [`gitvaulty run`](docs/commands/run.md) | Materialize files while a child command runs. |
 
-### Keys, users, and groups
+### Identity and access commands
 
 - [`gitvaulty key`](docs/commands/key.md) — Manage your global age identity:
   [`create`](docs/commands/key-create.md),
@@ -62,6 +225,7 @@ preserved.
   [`backup`](docs/commands/key-backup.md), and
   [`restore`](docs/commands/key-restore.md).
 - [`gitvaulty user`](docs/commands/user.md) — Manage registered repository users:
+  [`register`](docs/commands/user-register.md),
   [`add`](docs/commands/user-add.md),
   [`list`](docs/commands/user-list.md), and
   [`remove`](docs/commands/user-remove.md).
@@ -72,7 +236,7 @@ preserved.
   [`list`](docs/commands/group-list.md), and
   [`delete`](docs/commands/group-delete.md).
 
-### Migrate an existing file
+## Migrate an existing file
 
 If `.env` already exists, import it:
 
@@ -101,7 +265,7 @@ This does not erase the plaintext from existing commits or other clones. Rewriti
 history is a separate, disruptive repository operation; rotate every credential that may have been
 exposed regardless of whether you later rewrite that history.
 
-### Create a new file
+## Create a new file
 
 If the plaintext file does not exist:
 
@@ -306,6 +470,7 @@ npx gitvaulty key create
 npx gitvaulty key public
 npx gitvaulty key backup
 npx gitvaulty key restore
+npx gitvaulty user register alice
 npx gitvaulty user add
 npx gitvaulty user list
 npx gitvaulty user remove
@@ -319,8 +484,10 @@ npx gitvaulty group delete production
 The global age identity normally lives at `~/.config/gitvaulty/identity.txt`. Back it up once with
 `gitvaulty key backup`; the same identity works across GitVaulty repositories.
 
-A new developer runs `gitvaulty key public` and sends the resulting public `age1...` recipient to
-an existing user. `user add` asks which groups they should join, with `team` selected by default.
+A new developer runs `gitvaulty user register <username>` and commits their public recipient with no
+access. An existing authorized developer reviews that commit and runs
+`gitvaulty group add <group> <username>` to approve access. `user add` remains available as an
+interactive shortcut when an authorized developer already has someone else's public recipient.
 Private keys are never shared.
 
 Change the policy of an existing file with one interactive command:
