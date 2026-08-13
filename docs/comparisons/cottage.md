@@ -12,7 +12,7 @@ centralized access model for development teams and agents.
 | Plaintext safety | Import detects tracked plaintext and can remove it from Git's index while preserving it locally. Materialization rejects tracked, symlinked, mismatched, or unsafe destinations. `clean` removes only unchanged files. | Manages `.gitignore` and `.gitattributes`, offers verification and Git-hook integrations, and can remove plaintext with `--clean`. |
 | Commands and agents | `run` materializes only selected or identity-authorized files, scrubs private-key variables from the child environment, and removes only unchanged files created by that run. | `ctg run` temporarily decrypts files, `ctg env` injects values without writing them to disk, and documented Claude Code hooks clean secrets before an agent session and restore them afterward. |
 | Visibility | Keeps ciphertext completely opaque. `status` reports whether local plaintext is current, missing, or modified; Git cannot provide meaningful content diffs. | Generates redacted previews and provides `ctg diff` for comparing local plaintext with ciphertext while keeping ordinary Git diffs reviewable. |
-| Editor integration | Provides guarded CLI editing and a VS Code extension that edits decrypted virtual documents without materializing a repository file. | Provides CLI editing. No VS Code extension is documented. |
+| IDE plugins | **Supported:** VS Code, through the official [GitVaulty extension](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty). No dedicated JetBrains/IntelliJ plugin is documented. | **Supported:** none documented. Cottage provides `ctg edit` for CLI-driven editing. |
 | Upstreams and distribution | Uses Git as the encrypted store, requires no hosting, and installs through npm. | Can use Git, `jj`, non-Git directories, configurable provider plugins, or Cottage Sync. It is distributed through Rust, Python, Node, and container channels. |
 
 ## Which one should I use?
@@ -28,4 +28,6 @@ access-scoped command execution for agents, and native VS Code editing.
 
 Cottage's official README documents its [encryption, access rules, temporary and environment
 workflows, previews, hooks, agent integration, and upstream providers](https://github.com/sayanarijit/cottage).
-This comparison was last verified on 2026-08-13.
+GitVaulty's Marketplace listing documents its
+[VS Code extension](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty). This
+comparison was last verified on 2026-08-13.

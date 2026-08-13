@@ -10,7 +10,7 @@ repository-managed access control and guarded development workflows for teams an
 | Team access | Maintains named users and groups in the repository. Each file has an exact group and direct-user policy, and membership changes automatically re-encrypt every affected file. | Loads recipients from a directory or command option. Its documentation does not describe named groups or a repository-managed per-file access policy; recipient changes require `agebox reencrypt`. |
 | Git safety | Adds plaintext paths to the clone-local Git exclude file. Import detects tracked plaintext, warns about Git history, and can stop tracking the file while preserving the local copy. | Deliberately does not run Git commands or manage VCS state. `validate` can detect tracked files that are not encrypted, while ignore and index management remain the user's responsibility. |
 | Local and agent workflows | Provides guarded `edit`, `materialize`, `status`, `clean`, and `run` commands. `run` exposes only selected or identity-authorized files and removes only unchanged files it created. | Provides recursive and filtered `encrypt` and `decrypt`, plus `cat`, `validate`, `reencrypt`, and `untrack`. It does not document a temporary command or agent workflow. |
-| Editor integration | Includes a VS Code extension that edits decrypted virtual documents and re-encrypts them on save without creating a plaintext repository file. | No editor integration is documented. |
+| IDE plugins | **Supported:** VS Code, through the official [GitVaulty extension](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty). No dedicated JetBrains/IntelliJ plugin is documented. | **Supported:** none documented. Files are decrypted with the CLI before editing. |
 | Distribution | Installs through npm and requires Node.js 20 or newer. | Ships as a single Go binary and as a container image. |
 
 ## Which one should I use?
@@ -26,5 +26,6 @@ lifecycle around the encrypted files.
 ## Sources
 
 Agebox's official README documents its [commands, registry, recipient loading, supported key types,
-and no-VCS-side-effects design](https://github.com/slok/agebox). This comparison was last verified on
-2026-08-13.
+and no-VCS-side-effects design](https://github.com/slok/agebox). GitVaulty's Marketplace listing
+documents its [VS Code extension](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty).
+This comparison was last verified on 2026-08-13.
