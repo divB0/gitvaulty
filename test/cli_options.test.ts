@@ -6,6 +6,7 @@ const operationMocks = vi.hoisted(() => ({
   editSecretFile: vi.fn(async () => false),
   importSecretFile: vi.fn(async (_repository, file: string) => ({ file, bytes: 12 })),
   materializeSecretFiles: vi.fn(async () => []),
+  registerUser: vi.fn(async () => undefined),
   runWithFiles: vi.fn(async () => ({ code: 0, retained: [] })),
   setFileAccess: vi.fn(async (_repository, file: string, access) => ({ path: `${file}.gitvaulty`, ...access })),
   statusSecretFiles: vi.fn(async () => []),
@@ -92,6 +93,17 @@ describe("GitVaulty CLI option callbacks", () => {
     expect(operationMocks.setFileAccess).toHaveBeenCalledWith(repository, "secret.txt", {
       groups: ["production"],
       users: ["owner"],
+    });
+  });
+
+  it("registers the current public recipient without access", async () => {
+    await createProgram().parseAsync([
+      "node", "gitvaulty", "user", "register", "Alice",
+    ]);
+
+    expect(operationMocks.registerUser).toHaveBeenCalledWith(repository, {
+      username: "alice",
+      recipient: "age1owner",
     });
   });
 

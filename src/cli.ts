@@ -21,6 +21,7 @@ import {
   materializeSecretFiles,
   removeGroupMember,
   removeUser,
+  registerUser,
   runWithFiles,
   setFileAccess,
   statusSecretFiles,
@@ -294,6 +295,12 @@ export function createProgram(): Command {
   });
 
   const user = program.command("user").description("Manage users");
+  user.command("register <username>").description("Register your public recipient without granting access").action(async (username: string) => {
+    const recipient = await ensureCliIdentity();
+    const normalizedUsername = normalizeUsername(username);
+    await registerUser(await findRepository(), { username: normalizedUsername, recipient });
+    process.stdout.write(`Registered ${normalizedUsername} with no access. Commit .gitvaulty/recipients.json for review.\n`);
+  });
   user.command("add").description("Add a user to groups").action(async () => {
     await ensureCliIdentity();
     const repo = await findRepository();

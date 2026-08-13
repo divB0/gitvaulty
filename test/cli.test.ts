@@ -72,7 +72,7 @@ describe("GitVaulty CLI", () => {
     expect(command("access")?.options.map((option) => option.long)).toEqual(["--group", "--user"]);
     expect(command("run")?.options.map((option) => option.long)).toEqual(["--file", "--all"]);
     expect(command("key")?.commands.map((item) => item.name())).toEqual(["create", "public", "backup", "restore"]);
-    expect(command("user")?.commands.map((item) => item.name())).toEqual(["add", "list", "remove"]);
+    expect(command("user")?.commands.map((item) => item.name())).toEqual(["register", "add", "list", "remove"]);
     expect(command("group")?.commands.map((item) => item.name())).toEqual(["create", "add", "remove", "list", "delete"]);
   });
 
