@@ -311,11 +311,25 @@ GITVAULTY_KEY='AGE-SECRET-KEY-...' npx gitvaulty run -- npm start
 
 ## Install in a project
 
+Install GitVaulty as a development dependency so everyone working on the project uses the same
+version:
+
 ```sh
 npm install --save-dev gitvaulty
 ```
 
-Then use `npx gitvaulty` as shown above or add shorter package scripts.
+Run the project's installed version with `npx`:
+
+```sh
+npx gitvaulty <command>
+```
+
+For example:
+
+```sh
+npx gitvaulty init
+npx gitvaulty run -- npm start
+```
 
 ### `npx` reports `uv_cwd`
 
