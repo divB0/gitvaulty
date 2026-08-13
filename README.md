@@ -240,11 +240,11 @@ files are reported and kept.
 this invocation created:
 
 ```sh
-npx gitvaulty run -- npm start
+npx gitvaulty run --all -- npm start
 ```
 
-With no `--file` options, it uses every file the current user may access. Limit the selection when
-needed:
+`run` requires an explicit scope. Use `--all` for every file the current identity may access, or
+repeat `--file` to expose only the files the command needs:
 
 ```sh
 npx gitvaulty run -f .env.production -- npm start
@@ -337,7 +337,7 @@ offboarding.
 CI and service accounts can inject a separate private identity:
 
 ```sh
-GITVAULTY_KEY='AGE-SECRET-KEY-...' npx gitvaulty run -- npm start
+GITVAULTY_KEY='AGE-SECRET-KEY-...' npx gitvaulty run --all -- npm start
 ```
 
 `SOPS_AGE_KEY` is also supported. Mounted keys can use
@@ -362,7 +362,7 @@ For example:
 
 ```sh
 npx gitvaulty init
-npx gitvaulty run -- npm start
+npx gitvaulty run --all -- npm start
 ```
 
 ### `npx` reports `uv_cwd`

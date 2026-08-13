@@ -119,4 +119,32 @@ describe("GitVaulty CLI option callbacks", () => {
       ["node", "server.js", "--inspect"],
     );
   });
+
+  it("passes an empty selection for an explicit all-files run", async () => {
+    await createProgram().parseAsync([
+      "node", "gitvaulty", "run", "--all", "--", "npm", "start",
+    ]);
+
+    expect(operationMocks.runWithFiles).toHaveBeenCalledWith(
+      repository,
+      [],
+      ["npm", "start"],
+    );
+  });
+
+  it("requires an explicit run scope", async () => {
+    await expect(createProgram().parseAsync([
+      "node", "gitvaulty", "run", "--", "npm", "start",
+    ])).rejects.toThrow("Choose --all or at least one --file.");
+
+    expect(operationMocks.runWithFiles).not.toHaveBeenCalled();
+  });
+
+  it("rejects conflicting run scopes", async () => {
+    await expect(createProgram().parseAsync([
+      "node", "gitvaulty", "run", "--all", "--file", ".env", "--", "npm", "start",
+    ])).rejects.toThrow("Choose either --all or --file, not both.");
+
+    expect(operationMocks.runWithFiles).not.toHaveBeenCalled();
+  });
 });

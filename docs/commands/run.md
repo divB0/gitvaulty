@@ -5,13 +5,13 @@ Materialize encrypted files for the lifetime of a child command, then remove the
 ## Usage
 
 ```sh
-npx gitvaulty run [-f <path>...] -- <command> [arguments...]
+npx gitvaulty run (--all | -f <path>...) -- <command> [arguments...]
 ```
 
 Examples:
 
 ```sh
-npx gitvaulty run -- npm test
+npx gitvaulty run --all -- npm test
 npx gitvaulty run -f .env -- npm run dev
 npx gitvaulty run -f config/credentials.json -- node scripts/deploy.js --dry-run
 ```
@@ -22,9 +22,12 @@ Use `--` to separate GitVaulty options from the child command and its options.
 
 | Option | Meaning |
 | --- | --- |
+| `--all` | Select every registered file the current identity can access. |
 | `-f, --file <path>` | Select a logical plaintext path. Repeatable. |
 
-With no `--file` options, GitVaulty selects all registered files your current user can access.
+Choose exactly one selection mode: `--all` or one or more `--file` options. The modes cannot be
+combined. Requiring an explicit scope makes broad secret access visible in commands and agent
+instructions.
 
 ## Lifecycle
 

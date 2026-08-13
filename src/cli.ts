@@ -103,10 +103,17 @@ function addAccessOptions(command: Command): Command {
 
 type AccessCommandOptions = { group: string[]; user: string[] };
 type FileCommandOptions = { file: string[] };
+type RunCommandOptions = FileCommandOptions & { all?: boolean };
 type ImportCommandOptions = AccessCommandOptions & { update?: boolean };
 
 function accessOptions(options: AccessCommandOptions): { groups: string[]; users: string[] } {
   return { groups: options.group, users: options.user };
+}
+
+function runFiles(options: RunCommandOptions): string[] {
+  if (options.all && options.file.length > 0) throw new GitVaultyError("Choose either --all or --file, not both.");
+  if (!options.all && options.file.length === 0) throw new GitVaultyError("Choose --all or at least one --file.");
+  return options.file;
 }
 
 type ConfirmTrackedImport = (options: { message: string; default: boolean }) => Promise<boolean>;
@@ -249,13 +256,16 @@ export function createProgram(): Command {
     }
   });
 
-  addFileOptions(program.command("run [command...]")
+  program.command("run [command...]")
     .description("Materialize encrypted files while a command runs")
+    .option("-f, --file <path>", "plaintext path; repeat for more files", collect, [])
+    .option("--all", "use every file accessible to the current identity")
     .allowUnknownOption(true)
-    .passThroughOptions())
-    .action(async (command: string[], options: FileCommandOptions) => {
+    .passThroughOptions()
+    .action(async (command: string[], options: RunCommandOptions) => {
+      const files = runFiles(options);
       await ensureCliIdentity();
-      const result = await runWithFiles(await findRepository(), options.file, command);
+      const result = await runWithFiles(await findRepository(), files, command);
       for (const file of result.retained) process.stderr.write(`Warning: ${file} changed while the command ran and was kept.\n`);
       process.exitCode = result.code;
     });
