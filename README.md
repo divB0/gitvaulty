@@ -31,6 +31,7 @@ newer.
 - [Create a new file](#create-a-new-file)
 - [Edit encrypted files](#edit)
 - [VS Code](#vs-code)
+- [Streaming decrypted bytes](#streaming-decrypted-bytes)
 - [Local development](#local-development)
 - [Ephemeral files while running a command](#ephemeral-files-while-running-a-command)
 - [Supported files](#supported-files)
@@ -146,6 +147,15 @@ npx gitvaulty clean
 `materialize` creates private local plaintext copies. `clean` removes only unchanged copies that
 still match their ciphertext.
 
+### Pipe a file without materializing it
+
+```sh
+npx gitvaulty cat config/secrets.json | jq .
+```
+
+`cat` writes the exact decrypted bytes to stdout and creates no plaintext file. It refuses to print
+directly to an interactive terminal unless `--force` is supplied.
+
 ### Expose files only while a command runs
 
 ```sh
@@ -212,6 +222,7 @@ historical ciphertext they already copied, so rotate every external credential t
 | [`gitvaulty import`](docs/commands/import.md) | Encrypt an existing plaintext file or update existing ciphertext. |
 | [`gitvaulty access`](docs/commands/access.md) | Replace a file's group and direct-user access policy. |
 | [`gitvaulty edit`](docs/commands/edit.md) | Edit a file through a private temporary plaintext copy. |
+| [`gitvaulty cat`](docs/commands/cat.md) | Stream one decrypted file to standard output without materializing it. |
 | [`gitvaulty materialize`](docs/commands/materialize.md) | Create persistent local plaintext copies. |
 | [`gitvaulty clean`](docs/commands/clean.md) | Remove unchanged materialized plaintext files. |
 | [`gitvaulty status`](docs/commands/status.md) | Compare local plaintext with encrypted sources. |
@@ -364,6 +375,19 @@ is not appropriate.
 
 See the [full VS Code guide](docs/vscode.md) for setup, commands, conflict handling, security details,
 and troubleshooting.
+
+## Streaming decrypted bytes
+
+Use `cat` when the receiving tool accepts standard input and does not need a native file path:
+
+```sh
+npx gitvaulty cat config/credentials.json | jq .
+npx gitvaulty cat manifests/secret.yaml | kubectl apply -f -
+```
+
+GitVaulty writes only the exact decrypted bytes to stdout. Errors stay on stderr, and no plaintext
+file is created. Direct output to an interactive terminal is refused unless `--force` is supplied.
+See the [`cat` command reference](docs/commands/cat.md) for the output and safety contract.
 
 ## Local development
 

@@ -8,6 +8,12 @@ const operationMocks = vi.hoisted(() => ({
   initialize: vi.fn(async () => ({ agentSkill: "installed" as const })),
   isInitialized: vi.fn(async () => false),
   materializeSecretFiles: vi.fn(async () => []),
+  readSecretFile: vi.fn(async (_repository, file: string) => ({
+    file,
+    encryptedFile: `${file}.gitvaulty`,
+    plaintext: Buffer.from("secret"),
+    fingerprint: "a".repeat(64),
+  })),
   registerUser: vi.fn(async () => undefined),
   runWithFiles: vi.fn(async () => ({ code: 0, retained: [] })),
   setFileAccess: vi.fn(async (_repository, file: string, access) => ({ path: `${file}.gitvaulty`, ...access })),
@@ -69,6 +75,16 @@ vi.mock("../src/operations.js", async (importOriginal) => ({
 }));
 
 import { createProgram } from "../src/cli.js";
+
+async function withStdoutTTY<T>(isTTY: boolean, action: () => Promise<T>): Promise<T> {
+  const previous = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+  Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: isTTY });
+  try { return await action(); }
+  finally {
+    if (previous) Object.defineProperty(process.stdout, "isTTY", previous);
+    else Reflect.deleteProperty(process.stdout, "isTTY");
+  }
+}
 
 describe("GitVaulty CLI option callbacks", () => {
   beforeEach(() => {
@@ -193,6 +209,40 @@ describe("GitVaulty CLI option callbacks", () => {
     expect(operationMocks.materializeSecretFiles).toHaveBeenCalledWith(repository, files);
     expect(operationMocks.cleanSecretFiles).toHaveBeenCalledWith(repository, files);
     expect(operationMocks.statusSecretFiles).toHaveBeenCalledWith(repository, files);
+  });
+
+  it("writes exact secret bytes to non-interactive stdout", async () => {
+    const plaintext = Buffer.from([0, 1, 2, 10, 65, 255]);
+    operationMocks.readSecretFile.mockResolvedValueOnce({
+      file: "secret.bin",
+      encryptedFile: "secret.bin.gitvaulty",
+      plaintext,
+      fingerprint: "b".repeat(64),
+    });
+
+    await withStdoutTTY(false, () => createProgram().parseAsync([
+      "node", "gitvaulty", "cat", "secret.bin",
+    ]));
+
+    expect(operationMocks.readSecretFile).toHaveBeenCalledWith(repository, "secret.bin");
+    expect(process.stdout.write).toHaveBeenCalledTimes(1);
+    expect(process.stdout.write).toHaveBeenCalledWith(plaintext);
+  });
+
+  it("refuses interactive output unless forced", async () => {
+    await withStdoutTTY(true, async () => {
+      await expect(createProgram().parseAsync([
+        "node", "gitvaulty", "cat", "secret.bin",
+      ])).rejects.toThrow("Refusing to print a secret to an interactive terminal");
+      expect(operationMocks.readSecretFile).not.toHaveBeenCalled();
+
+      await createProgram().parseAsync([
+        "node", "gitvaulty", "cat", "secret.bin", "--force",
+      ]);
+    });
+
+    expect(operationMocks.readSecretFile).toHaveBeenCalledWith(repository, "secret.bin");
+    expect(process.stdout.write).toHaveBeenCalledWith(Buffer.from("secret"));
   });
 
   it("passes file options and the child command to run", async () => {

@@ -41,6 +41,7 @@ The command rejects symlinked paths, non-regular destinations, Git-tracked plain
 
 ## Related commands
 
+- [`gitvaulty cat`](cat.md)
 - [`gitvaulty status`](status.md)
 - [`gitvaulty clean`](clean.md)
 - [`gitvaulty run`](run.md)

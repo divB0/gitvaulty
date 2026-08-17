@@ -52,6 +52,7 @@ The child inherits the normal environment except for age private-key variables a
 
 ## Related commands
 
+- [`gitvaulty cat`](cat.md)
 - [`gitvaulty materialize`](materialize.md)
 - [`gitvaulty clean`](clean.md)
 - [`gitvaulty status`](status.md)

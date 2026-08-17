@@ -20,6 +20,7 @@ import {
   initialize,
   isInitialized,
   materializeSecretFiles,
+  readSecretFile,
   removeGroupMember,
   removeUser,
   registerUser,
@@ -110,6 +111,7 @@ function addAccessOptions(command: Command): Command {
 }
 
 type AccessCommandOptions = { group: string[]; user: string[] };
+type CatCommandOptions = { force?: boolean };
 type FileCommandOptions = { file: string[] };
 type RunCommandOptions = FileCommandOptions & { all?: boolean };
 type ImportCommandOptions = AccessCommandOptions & { update?: boolean };
@@ -299,6 +301,18 @@ export function createProgram(options: {
     const changed = await editSecretFile(repo, file, resolution);
     process.stdout.write(changed ? `Updated ${file}.gitvaulty.\n` : `No changes to ${file}.\n`);
   });
+
+  program.command("cat <path>")
+    .description("Decrypt a file to standard output")
+    .option("--force", "allow output to an interactive terminal")
+    .action(async (file: string, options: CatCommandOptions) => {
+      if (process.stdout.isTTY && !options.force) {
+        throw new GitVaultyError("Refusing to print a secret to an interactive terminal. Pipe the output or use --force.");
+      }
+      const repo = await preparedRepository();
+      const opened = await readSecretFile(repo, file);
+      process.stdout.write(opened.plaintext);
+    });
 
   const addFileOptions = (command: Command): Command => command.option(
     "-f, --file <path>",

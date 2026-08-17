@@ -9,6 +9,7 @@ repository-managed access control and guarded development workflows for teams an
 | Encryption | Uses SOPS binary mode with native age identities. The committed `*.gitvaulty` file reveals none of the plaintext structure. | Uses age directly and supports age X25519 plus SSH RSA and Ed25519 keys. It is also format-agnostic. |
 | Team access | Maintains named users and groups in the repository. Each file has an exact group and direct-user policy, and membership changes automatically re-encrypt every affected file. | Loads recipients from a directory or command option. Its documentation does not describe named groups or a repository-managed per-file access policy; recipient changes require `agebox reencrypt`. |
 | Git safety | Adds plaintext paths to the clone-local Git exclude file. Import detects tracked plaintext, warns about Git history, and can stop tracking the file while preserving the local copy. | Deliberately does not run Git commands or manage VCS state. `validate` can detect tracked files that are not encrypted, while ignore and index management remain the user's responsibility. |
+| Streaming and pipes | `cat` streams the exact bytes of one authorized logical file without materializing it. It keeps diagnostics on stderr and refuses interactive-terminal output unless `--force` is explicit. | `cat` can decrypt one or more arbitrary encrypted files to stdout. Its documentation uses `--no-log` for clean output and does not describe an interactive-terminal guard. |
 | Local and agent workflows | Provides guarded `edit`, `materialize`, `status`, `clean`, and `run` commands. `run` exposes only selected or identity-authorized files and removes only unchanged files it created. | Provides recursive and filtered `encrypt` and `decrypt`, plus `cat`, `validate`, `reencrypt`, and `untrack`. It does not document a temporary command or agent workflow. |
 | IDE plugins | **Supported:** VS Code, through the official [GitVaulty extension](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty). No dedicated JetBrains/IntelliJ plugin is documented. | **Supported:** none documented. Files are decrypted with the CLI before editing. |
 | Distribution | Installs through npm and requires Node.js 20 or newer. | Ships as a single Go binary and as a container image. |
@@ -25,7 +26,7 @@ lifecycle around the encrypted files.
 
 ## Sources
 
-Agebox's official README documents its [commands, registry, recipient loading, supported key types,
-and no-VCS-side-effects design](https://github.com/slok/agebox). GitVaulty's Marketplace listing
+Agebox's official README documents its [commands, stdout `cat` workflow, registry, recipient loading,
+supported key types, and no-VCS-side-effects design](https://github.com/slok/agebox). GitVaulty's Marketplace listing
 documents its [VS Code extension](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty).
-This comparison was last verified on 2026-08-13.
+This comparison was last verified on 2026-08-17.
