@@ -3,6 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const operationMocks = vi.hoisted(() => ({
   cleanSecretFiles: vi.fn(async () => ({ removed: [], retained: [] })),
   createSecretFile: vi.fn(async (_repository, file: string) => ({ file })),
+  diffSecretFiles: vi.fn(async (): Promise<Array<{
+    file: string;
+    encryptedFile: string;
+    oldContent: Buffer;
+    newContent: Buffer;
+  }>> => []),
   editSecretFile: vi.fn(async () => false),
   importSecretFile: vi.fn(async (_repository, file: string) => ({ file, bytes: 12 })),
   initialize: vi.fn(async () => ({ agentSkill: "installed" as const })),
@@ -209,6 +215,37 @@ describe("GitVaulty CLI option callbacks", () => {
     expect(operationMocks.materializeSecretFiles).toHaveBeenCalledWith(repository, files);
     expect(operationMocks.cleanSecretFiles).toHaveBeenCalledWith(repository, files);
     expect(operationMocks.statusSecretFiles).toHaveBeenCalledWith(repository, files);
+  });
+
+  it("passes positional paths to diff and defaults to all accessible files", async () => {
+    await createProgram().parseAsync(["node", "gitvaulty", "diff"]);
+    await createProgram().parseAsync([
+      "node", "gitvaulty", "diff", ".env", "config/secrets.yaml",
+    ]);
+
+    expect(operationMocks.diffSecretFiles).toHaveBeenNthCalledWith(1, repository, []);
+    expect(operationMocks.diffSecretFiles).toHaveBeenNthCalledWith(
+      2,
+      repository,
+      [".env", "config/secrets.yaml"],
+    );
+  });
+
+  it("prints plaintext differences with Git-like exit behavior", async () => {
+    const difference = {
+      file: ".env",
+      encryptedFile: ".env.gitvaulty",
+      oldContent: Buffer.from("TOKEN=old\n"),
+      newContent: Buffer.from("TOKEN=new\n"),
+    };
+    operationMocks.diffSecretFiles.mockResolvedValue([difference]);
+
+    await createProgram().parseAsync(["node", "gitvaulty", "diff", ".env"]);
+    expect(process.stdout.write).toHaveBeenCalledWith(expect.stringContaining("-TOKEN=old\n+TOKEN=new\n"));
+    expect(process.exitCode).toBeUndefined();
+
+    await createProgram().parseAsync(["node", "gitvaulty", "diff", ".env", "--exit-code"]);
+    expect(process.exitCode).toBe(1);
   });
 
   it("writes exact secret bytes to non-interactive stdout", async () => {

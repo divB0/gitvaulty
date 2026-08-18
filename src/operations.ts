@@ -581,6 +581,7 @@ interface PreparedFile extends SecretFileStatus {
   outputAbsolute: string;
   encryptedAbsolute: string;
   plaintext: Buffer;
+  localPlaintext: Buffer | undefined;
 }
 
 function digest(value: Buffer): string { return createHash("sha256").update(value).digest("hex"); }
@@ -612,23 +613,48 @@ async function prepareFiles(repo: Repository, plaintextFiles: string[]): Promise
     if (!encryptedStats.isFile() || encryptedStats.isSymbolicLink()) throw new GitVaultyError(`Encrypted source must be a regular file: ${encryptedFile}`);
     const plaintext = await decryptSecretFile(repo, encryptedAbsolute);
     let state: FileState = "missing";
+    let localPlaintext: Buffer | undefined;
     if (await isTracked(repo, file)) state = "tracked";
     else {
       try {
         const stats = await lstat(outputAbsolute);
         if (!stats.isFile() || stats.isSymbolicLink()) state = "unsafe";
-        else state = (await readFile(outputAbsolute)).equals(plaintext) ? "current" : "modified";
+        else {
+          localPlaintext = await readFile(outputAbsolute);
+          state = localPlaintext.equals(plaintext) ? "current" : "modified";
+        }
       } catch (error: unknown) {
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       }
     }
-    prepared.push({ file, encryptedFile, state, outputAbsolute, encryptedAbsolute, plaintext });
+    prepared.push({ file, encryptedFile, state, outputAbsolute, encryptedAbsolute, plaintext, localPlaintext });
   }
   return prepared;
 }
 
 export async function statusSecretFiles(repo: Repository, plaintextFiles: string[] = []): Promise<SecretFileStatus[]> {
   return (await prepareFiles(repo, plaintextFiles)).map(({ file, encryptedFile, state }) => ({ file, encryptedFile, state }));
+}
+
+export interface SecretFileDiff {
+  file: string;
+  encryptedFile: string;
+  oldContent: Buffer;
+  newContent: Buffer;
+}
+
+export async function diffSecretFiles(repo: Repository, plaintextFiles: string[] = []): Promise<SecretFileDiff[]> {
+  const prepared = await prepareFiles(repo, plaintextFiles);
+  const blocked = prepared.find((file) => file.state === "tracked" || file.state === "unsafe");
+  if (blocked) throw new GitVaultyError(`${blocked.file} is ${blocked.state}; GitVaulty did not read it.`);
+  return prepared
+    .filter((file) => file.state === "modified" || file.state === "missing")
+    .map(({ file, encryptedFile, plaintext, localPlaintext }) => ({
+      file,
+      encryptedFile,
+      oldContent: plaintext,
+      newContent: localPlaintext ?? Buffer.alloc(0),
+    }));
 }
 
 function assertMaterializable(files: PreparedFile[]): void {

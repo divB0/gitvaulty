@@ -58,6 +58,7 @@ describe("GitVaulty CLI", () => {
       "access",
       "edit",
       "cat",
+      "diff",
       "materialize",
       "clean",
       "status",
@@ -72,6 +73,7 @@ describe("GitVaulty CLI", () => {
     expect(command("import")?.options.map((option) => option.long)).toEqual(["--update", "--group", "--user"]);
     expect(command("access")?.options.map((option) => option.long)).toEqual(["--group", "--user"]);
     expect(command("cat")?.options.map((option) => option.long)).toEqual(["--force"]);
+    expect(command("diff")?.options.map((option) => option.long)).toEqual(["--exit-code"]);
     expect(command("run")?.options.map((option) => option.long)).toEqual(["--file", "--all"]);
     expect(command("key")?.commands.map((item) => item.name())).toEqual(["create", "public", "backup", "restore"]);
     expect(command("user")?.commands.map((item) => item.name())).toEqual(["register", "add", "list", "remove"]);

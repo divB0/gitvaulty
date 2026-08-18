@@ -14,6 +14,7 @@ import {
   createGroup,
   createSecretFile,
   deleteGroup,
+  diffSecretFiles,
   editSecretFile,
   encryptedFileFor,
   importSecretFile,
@@ -47,6 +48,7 @@ import {
   type AgentSkillStatus,
 } from "./agent-skill.js";
 import { readRepositoryConfig, writeAgentSkillMode } from "./config.js";
+import { formatSecretDiff } from "./diff.js";
 
 const packageManifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version?: unknown };
 if (typeof packageManifest.version !== "string") throw new Error("package.json must contain a version string.");
@@ -112,6 +114,7 @@ function addAccessOptions(command: Command): Command {
 
 type AccessCommandOptions = { group: string[]; user: string[] };
 type CatCommandOptions = { force?: boolean };
+type DiffCommandOptions = { exitCode?: boolean };
 type FileCommandOptions = { file: string[] };
 type RunCommandOptions = FileCommandOptions & { all?: boolean };
 type ImportCommandOptions = AccessCommandOptions & { update?: boolean };
@@ -312,6 +315,19 @@ export function createProgram(options: {
       const repo = await preparedRepository();
       const opened = await readSecretFile(repo, file);
       process.stdout.write(opened.plaintext);
+    });
+
+  program.command("diff [paths...]")
+    .description("Show plaintext changes relative to encrypted files")
+    .option("--exit-code", "exit with 1 when differences exist")
+    .action(async (paths: string[], options: DiffCommandOptions) => {
+      const repo = await preparedRepository();
+      await ensureCliIdentity();
+      const differences = await diffSecretFiles(repo, paths);
+      for (const difference of differences) {
+        process.stdout.write(formatSecretDiff(difference.file, difference.oldContent, difference.newContent));
+      }
+      if (options.exitCode && differences.length > 0) process.exitCode = 1;
     });
 
   const addFileOptions = (command: Command): Command => command.option(

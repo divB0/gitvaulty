@@ -147,6 +147,17 @@ npx gitvaulty clean
 `materialize` creates private local plaintext copies. `clean` removes only unchanged copies that
 still match their ciphertext.
 
+### Review local plaintext changes
+
+```sh
+npx gitvaulty diff
+npx gitvaulty diff .env config/secrets.yaml
+```
+
+`diff` compares decrypted encrypted sources with local plaintext files and prints unified Git-style
+output. The output intentionally contains plaintext secret values. Like `git diff`, differences
+exit successfully by default; use `--exit-code` when a difference should exit with status 1.
+
 ### Pipe a file without materializing it
 
 ```sh
@@ -223,6 +234,7 @@ historical ciphertext they already copied, so rotate every external credential t
 | [`gitvaulty access`](docs/commands/access.md) | Replace a file's group and direct-user access policy. |
 | [`gitvaulty edit`](docs/commands/edit.md) | Edit a file through a private temporary plaintext copy. |
 | [`gitvaulty cat`](docs/commands/cat.md) | Stream one decrypted file to standard output without materializing it. |
+| [`gitvaulty diff`](docs/commands/diff.md) | Show Git-style plaintext changes relative to encrypted sources. |
 | [`gitvaulty materialize`](docs/commands/materialize.md) | Create persistent local plaintext copies. |
 | [`gitvaulty clean`](docs/commands/clean.md) | Remove unchanged materialized plaintext files. |
 | [`gitvaulty status`](docs/commands/status.md) | Compare local plaintext with encrypted sources. |

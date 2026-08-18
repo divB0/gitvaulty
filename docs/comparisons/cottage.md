@@ -12,13 +12,13 @@ centralized access model for development teams and agents.
 | Plaintext safety | Import detects tracked plaintext and can remove it from Git's index while preserving it locally. Materialization rejects tracked, symlinked, mismatched, or unsafe destinations. `clean` removes only unchanged files. | Manages `.gitignore` and `.gitattributes`, offers verification and Git-hook integrations, and can remove plaintext with `--clean`. |
 | Streaming and pipes | `cat` streams the exact bytes of one authorized logical file without materializing it. It keeps diagnostics on stderr and refuses interactive-terminal output unless `--force` is explicit. | Cottage has no direct stdout-decryption command. `ctg run` can invoke a tool such as `cat`, but it first decrypts the selected secret to a temporary repository file and deletes it after the child exits. |
 | Commands and agents | `run` materializes only selected or identity-authorized files, scrubs private-key variables from the child environment, and removes only unchanged files created by that run. | `ctg run` temporarily decrypts files, `ctg env` injects values without writing them to disk, and documented Claude Code hooks clean secrets before an agent session and restore them afterward. |
-| Visibility | Keeps ciphertext completely opaque. `status` reports whether local plaintext is current, missing, or modified; Git cannot provide meaningful content diffs. | Generates redacted previews and provides `ctg diff` for comparing local plaintext with ciphertext while keeping ordinary Git diffs reviewable. |
+| Visibility | Keeps ciphertext completely opaque. `status` reports local plaintext state, while `diff` decrypts in memory and prints Git-style plaintext changes relative to the encrypted source. | Generates redacted previews and provides `ctg diff` for comparing local plaintext with ciphertext while keeping ordinary Git diffs reviewable. |
 | IDE plugins | **Supported:** VS Code, through the official [GitVaulty extension](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty). No dedicated JetBrains/IntelliJ plugin is documented. | **Supported:** none documented. Cottage provides `ctg edit` for CLI-driven editing. |
 | Upstreams and distribution | Uses Git as the encrypted store, requires no hosting, and installs through npm. | Can use Git, `jj`, non-Git directories, configurable provider plugins, or Cottage Sync. It is distributed through Rust, Python, Node, and container channels. |
 
 ## Which one should I use?
 
-Choose Cottage when you need environment injection, redacted previews and richer diffs, Git hooks,
+Choose Cottage when you need environment injection, committed redacted previews, Git hooks,
 SSH-key reuse, or synchronization with secret providers beyond Git.
 
 Choose GitVaulty when you want a smaller Git-centered model with named team groups, automatic

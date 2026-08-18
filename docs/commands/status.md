@@ -39,6 +39,7 @@ The comparison requires decryption, so only authorized files can be selected. Th
 
 ## Related commands
 
+- [`gitvaulty diff`](diff.md)
 - [`gitvaulty materialize`](materialize.md)
 - [`gitvaulty clean`](clean.md)
 - [`gitvaulty import --update`](import.md#updating-an-existing-encrypted-file)

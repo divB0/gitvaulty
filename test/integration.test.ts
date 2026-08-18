@@ -10,6 +10,7 @@ import {
   cleanSecretFiles,
   createGroup,
   deleteGroup,
+  diffSecretFiles,
   importSecretFile,
   initialize,
   materializeSecretFiles,
@@ -82,6 +83,40 @@ describe("GitVaulty hybrid native-file workflow", () => {
       retained: [{ file: ".env.production", encryptedFile: ".env.production.gitvaulty", state: "modified" }],
     });
     await expect(materializeSecretFiles(repo, [".env.production"])).rejects.toThrow("modified");
+  }, 30_000);
+
+  it("compares encrypted sources with selected local plaintext files", async () => {
+    await importFixtures();
+    await writeFile(path.join(root, ".env.production"), "TOKEN=local-change\n");
+
+    expect(await diffSecretFiles(repo)).toEqual([{
+      file: ".env.production",
+      encryptedFile: ".env.production.gitvaulty",
+      oldContent: Buffer.from("TOKEN=very-secret\nPORT=4321\n"),
+      newContent: Buffer.from("TOKEN=local-change\n"),
+    }]);
+    expect(await diffSecretFiles(repo, ["terraform/secrets.auto.tfvars.json"])).toEqual([]);
+
+    await writeFile(path.join(root, ".env.production"), "TOKEN=very-secret\nPORT=4321\n");
+    await cleanSecretFiles(repo, [".env.production"]);
+    expect(await diffSecretFiles(repo, [".env.production"])).toEqual([{
+      file: ".env.production",
+      encryptedFile: ".env.production.gitvaulty",
+      oldContent: Buffer.from("TOKEN=very-secret\nPORT=4321\n"),
+      newContent: Buffer.alloc(0),
+    }]);
+  }, 30_000);
+
+  it("rejects tracked and unsafe plaintext destinations when diffing", async () => {
+    await writeFile(path.join(root, ".env"), "TOKEN=secret\n");
+    await importSecretFile(repo, ".env");
+    await executeChecked("git", ["add", "-f", ".env"], { cwd: root });
+    await expect(diffSecretFiles(repo, [".env"])).rejects.toThrow(".env is tracked");
+
+    await executeChecked("git", ["rm", "--cached", "-q", ".env"], { cwd: root });
+    await cleanSecretFiles(repo, [".env"]);
+    await mkdir(path.join(root, ".env"));
+    await expect(diffSecretFiles(repo, [".env"])).rejects.toThrow(".env is unsafe");
   }, 30_000);
 
   it("defaults run to all accessible files and removes only outputs it created", async () => {
