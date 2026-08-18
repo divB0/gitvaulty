@@ -7,7 +7,10 @@ readonly repo_root
 readonly demo_output="demos/access-control.gif"
 
 cleanup_demo_runtime() {
-  rm -rf -- /tmp/gitvaulty-readme-demo /tmp/gitvaulty-readme-keys
+  rm -rf -- \
+    /tmp/gitvaulty-readme-demo \
+    /tmp/gitvaulty-readme-keys \
+    /tmp/gitvaulty-readme-remote.git
 }
 
 trap cleanup_demo_runtime EXIT

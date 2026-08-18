@@ -22,11 +22,11 @@ Type@0ms 'export GITVAULTY_CLI="$PWD/dist/cli.js"'
 Enter
 Type@0ms 'export DEMO_SCRIPT="$PWD/demos/access-control-demo.sh"'
 Enter
-Type@0ms "export DEMO_DIR=/tmp/gitvaulty-readme-demo DEMO_KEYS=/tmp/gitvaulty-readme-keys"
+Type@0ms "export DEMO_DIR=/tmp/gitvaulty-readme-demo DEMO_KEYS=/tmp/gitvaulty-readme-keys DEMO_REMOTE=/tmp/gitvaulty-readme-remote.git"
 Enter
-Type@0ms 'cd /tmp && rm -rf "$DEMO_DIR" "$DEMO_KEYS" && mkdir -p "$DEMO_DIR" "$DEMO_KEYS"'
+Type@0ms 'cd /tmp && rm -rf "$DEMO_DIR" "$DEMO_KEYS" "$DEMO_REMOTE" && mkdir -p "$DEMO_DIR" "$DEMO_KEYS"'
 Enter
-Type@0ms 'cd "$DEMO_DIR" && git init -q && git config user.email admin@example.com'
+Type@0ms 'git init -q --bare "$DEMO_REMOTE" && cd "$DEMO_DIR" && git init -q -b main && git remote add origin "$DEMO_REMOTE"'
 Enter
 Type@0ms 'gitvaulty() { node "$GITVAULTY_CLI" "$@"; }'
 Enter
@@ -42,7 +42,7 @@ Type@0ms 'chmod +x "$DEMO_KEYS/editor.sh" && export EDITOR="$DEMO_KEYS/editor.sh
 Enter
 Type@0ms "as_user admin"
 Enter
-Type@0ms 'printf "\033[2J\033[H"'
+Type@0ms 'printf "\033[2J\033[H\033[1;38;5;117m# User: Admin (repository owner)\033[0m\n"'
 Enter
 Sleep 500ms
 Show
@@ -66,5 +66,5 @@ Sleep 4s
 
 # Remove all runtime identities and plaintext after the recording.
 Hide
-Type@0ms 'cd /tmp && rm -rf "$DEMO_DIR" "$DEMO_KEYS"'
+Type@0ms 'cd /tmp && rm -rf "$DEMO_DIR" "$DEMO_KEYS" "$DEMO_REMOTE"'
 Enter
