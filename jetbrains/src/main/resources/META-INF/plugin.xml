@@ -8,6 +8,16 @@
     creating plaintext repository files.</p>
   ]]></description>
 
+  <change-notes><![CDATA[
+    <h3>0.1.0</h3>
+    <ul>
+      <li>Open authorized <code>*.gitvaulty</code> files in the native text editor.</li>
+      <li>Re-encrypt, verify, and atomically replace ciphertext on save.</li>
+      <li>Detect external ciphertext changes and prevent stale overwrites.</li>
+      <li>Show access, copy paths, reload, and explicitly export decrypted copies.</li>
+    </ul>
+  ]]></change-notes>
+
   <depends>com.intellij.modules.platform</depends>
 
   <extensions defaultExtensionNs="com.intellij">

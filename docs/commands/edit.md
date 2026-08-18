@@ -41,7 +41,8 @@ Git-tracked plaintext, symlinks, directories, and other unsafe destinations are 
 
 The temporary file has private permissions and is normally deleted immediately. A crash or forced termination can prevent cleanup. Every later GitVaulty command checks for abandoned `gitvaulty-edit-*` directories and removes only conservative matches after a grace period.
 
-The editor and its extensions can read the decrypted content. See the [VS Code guide](../vscode.md) for the security boundary of virtual editing.
+The editor and its extensions can read the decrypted content. See the [VS Code guide](../vscode.md)
+or [JetBrains plugin guide](../../jetbrains/README.md) for the security boundary of native editing.
 
 ## Git behavior
 

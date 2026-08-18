@@ -1,0 +1,62 @@
+name: JetBrains plugin check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "editor-runtime/**"
+      - "jetbrains/**"
+      - "src/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/jetbrains-check.yml"
+  pull_request:
+    paths:
+      - "editor-runtime/**"
+      - "jetbrains/**"
+      - "src/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/jetbrains-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            editor-runtime/package-lock.json
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Install core dependencies
+        run: npm ci
+      - name: Install runtime dependencies
+        run: npm ci
+        working-directory: editor-runtime
+      - name: Verify editor runtime
+        run: npm run check
+        working-directory: editor-runtime
+      - name: Build and smoke-test native runtime
+        run: node editor-runtime/scripts/build-runtime.mjs --target linux-x64
+      - name: Verify JetBrains plugin and native handshake
+        run: >-
+          ./jetbrains/gradlew -p jetbrains
+          test buildPlugin verifyPluginProjectConfiguration verifyPluginStructure
+          -PgitvaultyTestRuntime=${{ github.workspace }}/editor-runtime/dist/linux-x64/gitvaulty-editor-runtime
+          --console=plain
+      - uses: actions/upload-artifact@v6
+        with:
+          name: gitvaulty-jetbrains-check
+          path: jetbrains/build/distributions/*.zip
+          if-no-files-found: error

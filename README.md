@@ -46,6 +46,7 @@ newer.
 6. [Create a new file](#create-a-new-file)
 7. [Edit](#edit)
    1. [VS Code](#vs-code)
+   2. [JetBrains IDEs](#jetbrains-ides)
 8. [Streaming decrypted bytes](#streaming-decrypted-bytes)
 9. [Local development](#local-development)
 10. [Ephemeral files while running a command](#ephemeral-files-while-running-a-command)
@@ -417,6 +418,23 @@ is not appropriate.
 
 See the [full VS Code guide](docs/vscode.md) for setup, commands, conflict handling, security details,
 and troubleshooting.
+
+### JetBrains IDEs
+
+GitVaulty's JetBrains plugin opens `*.gitvaulty` files as decrypted native editor documents in
+IntelliJ IDEA and other desktop JetBrains IDEs. Saving re-encrypts, verifies, and atomically replaces
+the ciphertext without creating a plaintext sibling in the repository.
+
+The plugin supports macOS (Apple Silicon and Intel), Linux (ARM64 and x64), and Windows x64. It
+downloads a native GitVaulty runtime for the current platform from an exact GitHub Release asset,
+then verifies both its byte length and SHA-256 digest before installation.
+
+The editor detects ciphertext changes and refuses to overwrite a newer encrypted version. Decrypted
+text is visible to the IDE document model, compatible plugins and language services, and potentially
+IDE recovery storage. Use `gitvaulty edit` when that security boundary is not appropriate.
+
+See the [JetBrains plugin guide](jetbrains/README.md) for installation, editor actions, conflict
+handling, security details, development, and release packaging.
 
 ## Streaming decrypted bytes
 

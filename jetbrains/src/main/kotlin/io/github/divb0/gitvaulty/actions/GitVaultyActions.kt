@@ -17,10 +17,16 @@ import io.github.divb0.gitvaulty.editor.GitVaultyEditorService
 import io.github.divb0.gitvaulty.editor.GitVaultyNotifications
 import io.github.divb0.gitvaulty.editor.GitVaultyVirtualFile
 import java.awt.datatransfer.StringSelection
+import java.io.IOException
+import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.nio.file.LinkOption
+import java.nio.file.OpenOption
 import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.PosixFilePermission
+import java.nio.file.attribute.PosixFilePermissions
 
 abstract class GitVaultyEditorAction : AnAction(), DumbAware {
   override fun update(event: AnActionEvent) {
@@ -99,13 +105,7 @@ class SaveDecryptedCopyAction : GitVaultyEditorAction() {
     ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Saving decrypted copy", true) {
       override fun run(indicator: ProgressIndicator) {
         try {
-          Files.writeString(destination, text, StandardCharsets.UTF_8)
-          runCatching {
-            Files.setPosixFilePermissions(
-              destination,
-              setOf(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE),
-            )
-          }
+          writePrivateCopy(destination, text)
           GitVaultyNotifications.info(project, "Saved decrypted copy to $destination.")
         } catch (error: Throwable) {
           GitVaultyNotifications.error(project, error.message ?: "GitVaulty could not save the decrypted copy.")
@@ -113,4 +113,29 @@ class SaveDecryptedCopyAction : GitVaultyEditorAction() {
       }
     })
   }
+}
+
+internal fun writePrivateCopy(destination: Path, text: String) {
+  val normalized = destination.toAbsolutePath().normalize()
+  val existed = Files.exists(normalized, LinkOption.NOFOLLOW_LINKS)
+  if (Files.isSymbolicLink(normalized) || (existed && !Files.isRegularFile(normalized, LinkOption.NOFOLLOW_LINKS))) {
+    throw IOException("The decrypted-copy destination must be a regular file, not a symbolic link.")
+  }
+
+  val permissions = setOf(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE)
+  val posix = Files.getFileStore(normalized.parent).supportsFileAttributeView("posix")
+  if (existed && posix) Files.setPosixFilePermissions(normalized, permissions)
+
+  val options = setOf<OpenOption>(
+    StandardOpenOption.CREATE,
+    StandardOpenOption.TRUNCATE_EXISTING,
+    StandardOpenOption.WRITE,
+    LinkOption.NOFOLLOW_LINKS,
+  )
+  val attributes = if (!existed && posix) arrayOf(PosixFilePermissions.asFileAttribute(permissions)) else emptyArray()
+  Files.newByteChannel(normalized, options, *attributes).use { channel ->
+    val bytes = ByteBuffer.wrap(text.toByteArray(StandardCharsets.UTF_8))
+    while (bytes.hasRemaining()) channel.write(bytes)
+  }
+  if (posix) Files.setPosixFilePermissions(normalized, permissions)
 }

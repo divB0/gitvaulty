@@ -47,6 +47,10 @@ intellijPlatform {
 val runtimeManifest = providers.gradleProperty("gitvaultyRuntimeManifest")
 
 tasks.processResources {
+  from(rootProject.file("../LICENSE")) {
+    into("META-INF")
+    rename { "LICENSE.gitvaulty" }
+  }
   if (runtimeManifest.isPresent) {
     exclude("gitvaulty-runtime-manifest.json")
     from(runtimeManifest.map(::file)) {

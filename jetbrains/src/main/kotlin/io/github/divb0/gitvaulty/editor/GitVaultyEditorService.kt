@@ -5,6 +5,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
@@ -27,6 +28,11 @@ class GitVaultyEditorService(private val project: Project) : Disposable {
   private val runtime: EditorRuntime by lazy { RuntimeClientEditorRuntime(client) }
 
   init {
+    project.messageBus.connect(this).subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, object : FileEditorManagerListener {
+      override fun fileClosed(source: FileEditorManager, file: VirtualFile) {
+        if (file is GitVaultyVirtualFile) files.remove(file.session.sourcePath, file)
+      }
+    })
     project.messageBus.connect(this).subscribe(VirtualFileManager.VFS_CHANGES, object : BulkFileListener {
       override fun after(events: List<VFileEvent>) {
         events.mapNotNull { event -> runCatching { Path.of(event.path).toAbsolutePath().normalize() }.getOrNull() }
