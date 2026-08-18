@@ -11,9 +11,9 @@ Set Height 800
 Set Padding 28
 Set Theme "TokyoNightStorm"
 Set WindowBar Colorful
-Set TypingSpeed 20ms
+Set TypingSpeed 30ms
 Set Framerate 8
-Set PlaybackSpeed 1.4
+Set PlaybackSpeed 1.0
 Set CursorBlink false
 
 # Prepare a disposable repository, runtime-only identities, and dummy plaintext.
@@ -42,8 +42,9 @@ Type@0ms 'chmod +x "$DEMO_KEYS/editor.sh" && export EDITOR="$DEMO_KEYS/editor.sh
 Enter
 Type@0ms "as_user admin"
 Enter
-Type@0ms "clear"
+Type@0ms 'printf "\033[2J\033[H"'
 Enter
+Sleep 500ms
 Show
 
 Type "# Initialize a GitVaulty repository"

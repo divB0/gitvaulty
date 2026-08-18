@@ -30,7 +30,7 @@ as_user() {
 
 section() {
   printf '\033[2J\033[H\033[38;5;103m# %s\033[0m\n' "$1"
-  sleep 1
+  sleep 2
 }
 
 prompt() {
@@ -38,57 +38,59 @@ prompt() {
 }
 
 run_gitvaulty() {
+  local read_seconds="$1"
+  shift
   prompt "gitvaulty $*"
   gitvaulty "$@"
-  sleep 1
+  sleep "$read_seconds"
 }
 
 section "Create dev + sre access groups"
-run_gitvaulty group create dev
-run_gitvaulty group create sre
-run_gitvaulty group add dev admin
-run_gitvaulty group add sre admin
+run_gitvaulty 2 group create dev
+run_gitvaulty 2 group create sre
+run_gitvaulty 2 group add dev admin
+run_gitvaulty 2 group add sre admin
 
 section "Register initial developer and SRE users"
 as_user alice
-run_gitvaulty user register alice
+run_gitvaulty 2 user register alice
 as_user sam
-run_gitvaulty user register sam
+run_gitvaulty 2 user register sam
 as_user admin
-run_gitvaulty group add dev alice
-run_gitvaulty group add sre sam
-run_gitvaulty group list
+run_gitvaulty 2 group add dev alice
+run_gitvaulty 2 group add sre sam
+run_gitvaulty 4 group list
 
 section "Local .env: dev + sre only"
-run_gitvaulty create .env --group dev --group sre
+run_gitvaulty 3 create .env --group dev --group sre
 
 section "Production .env: sre only"
-run_gitvaulty create .env.production --group sre
+run_gitvaulty 3 create .env.production --group sre
 
 section "Terraform production secrets: sre only"
 prompt "mkdir -p terraform"
 mkdir -p terraform
-sleep 1
-run_gitvaulty create terraform/prod.auto.tfvars --group sre
+sleep 2
+run_gitvaulty 3 create terraform/prod.auto.tfvars --group sre
 
 section "Later, onboard a new developer"
 as_user jules
-run_gitvaulty user register jules
+run_gitvaulty 2 user register jules
 as_user admin
-run_gitvaulty group add dev jules
-run_gitvaulty group list
+run_gitvaulty 2 group add dev jules
+run_gitvaulty 4 group list
 
 section "Jules can materialize only the local .env"
 as_user jules
-run_gitvaulty materialize
-run_gitvaulty status
+run_gitvaulty 4 materialize
+run_gitvaulty 4 status
 prompt "gitvaulty cat .env.production >/dev/null"
 gitvaulty cat .env.production >/dev/null || true
-sleep 1
+sleep 3
 prompt "gitvaulty cat terraform/prod.auto.tfvars >/dev/null"
 gitvaulty cat terraform/prod.auto.tfvars >/dev/null || true
-sleep 1
-run_gitvaulty clean
+sleep 3
+run_gitvaulty 2 clean
 
 section "Sam can use SRE-only files without leaving plaintext"
 as_user sam
@@ -98,5 +100,5 @@ gitvaulty run \
   -f terraform/prod.auto.tfvars \
   -- terraform -chdir=terraform fmt -check prod.auto.tfvars
 printf 'Terraform accepted SRE-only secrets.\n'
-sleep 1
-run_gitvaulty status
+sleep 3
+run_gitvaulty 4 status
