@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GitVaulty editor runtime manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocolVersion", "runtimeVersion", "assets"],
+  "properties": {
+    "protocolVersion": { "const": 1 },
+    "runtimeVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "assets": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target", "filename", "url", "size", "sha256"],
+        "properties": {
+          "target": { "enum": ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"] },
+          "filename": { "type": "string" },
+          "url": { "type": "string", "format": "uri", "pattern": "^https://github\\.com/divB0/gitvaulty/releases/download/" },
+          "size": { "type": "integer", "minimum": 1 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        }
+      }
+    }
+  }
+}

@@ -5,13 +5,11 @@ import { executeBinaryChecked, executeChecked } from "./process.js";
 import { GitVaultyError } from "./errors.js";
 import { identityFile } from "./key.js";
 
-const require = createRequire(import.meta.url);
-
 export function resolveSops(): string {
   const platform = process.platform === "win32" ? "win32" : process.platform;
   const arch = process.arch === "x64" ? "x64" : process.arch === "arm64" ? "arm64" : process.arch;
   const name = `@clef-sh/sops-${platform}-${arch}`;
-  try { return require.resolve(name); }
+  try { return createRequire(import.meta.url).resolve(name); }
   catch { throw new GitVaultyError(`SOPS is unavailable for ${platform}-${arch}. Install sops and set GITVAULTY_SOPS, or open an issue.`); }
 }
 

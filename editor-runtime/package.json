@@ -1,0 +1,21 @@
+{
+  "name": "@gitvaulty/editor-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bundle": "node scripts/build-runtime.mjs --bundle-only",
+    "check": "npm run typecheck && npm test && npm run bundle",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/archiver": "7.0.0",
+    "@types/node": "26.2.0",
+    "archiver": "7.0.1",
+    "esbuild": "0.28.2",
+    "postject": "1.0.0-alpha.6",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}
