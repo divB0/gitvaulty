@@ -24,21 +24,51 @@ newer.
 
 ## Contents
 
-- [Quick start](#quick-start)
-- [Common workflows](#common-workflows)
-- [Command reference](#command-reference)
-- [Migrate an existing file](#migrate-an-existing-file)
-- [Create a new file](#create-a-new-file)
-- [Edit encrypted files](#edit)
-- [VS Code](#vs-code)
-- [Streaming decrypted bytes](#streaming-decrypted-bytes)
-- [Local development](#local-development)
-- [Ephemeral files while running a command](#ephemeral-files-while-running-a-command)
-- [Supported files](#supported-files)
-- [Keys, users, and groups](#keys-users-and-groups)
-- [Install in a project](#install-in-a-project)
-- [Repository layout](#repository-layout)
-- [Comparisons](#comparisons)
+1. [Demo](#demo)
+2. [Quick start](#quick-start)
+   1. [Add a new developer](#add-a-new-developer)
+3. [Common workflows](#common-workflows)
+   1. [Import an existing plaintext file](#import-an-existing-plaintext-file)
+   2. [Create another encrypted file](#create-another-encrypted-file)
+   3. [Edit an encrypted file](#edit-an-encrypted-file)
+   4. [Materialize files for local development](#materialize-files-for-local-development)
+   5. [Review local plaintext changes](#review-local-plaintext-changes)
+   6. [Pipe a file without materializing it](#pipe-a-file-without-materializing-it)
+   7. [Expose files only while a command runs](#expose-files-only-while-a-command-runs)
+   8. [Create and use a narrower access group](#create-and-use-a-narrower-access-group)
+   9. [Change who can access an existing file](#change-who-can-access-an-existing-file)
+   10. [Inspect users and groups](#inspect-users-and-groups)
+   11. [Offboard a developer](#offboard-a-developer)
+4. [Command reference](#command-reference)
+   1. [Files and workflows](#files-and-workflows)
+   2. [Identity and access commands](#identity-and-access-commands)
+5. [Migrate an existing file](#migrate-an-existing-file)
+6. [Create a new file](#create-a-new-file)
+7. [Edit](#edit)
+   1. [VS Code](#vs-code)
+8. [Streaming decrypted bytes](#streaming-decrypted-bytes)
+9. [Local development](#local-development)
+10. [Ephemeral files while running a command](#ephemeral-files-while-running-a-command)
+    1. [Agent skill updates](#agent-skill-updates)
+11. [Supported files](#supported-files)
+12. [Keys, users, and groups](#keys-users-and-groups)
+13. [Install in a project](#install-in-a-project)
+    1. [`npx` reports `uv_cwd`](#npx-reports-uv_cwd)
+14. [Repository layout](#repository-layout)
+15. [Comparisons](#comparisons)
+16. [License](#license)
+
+## Demo
+
+This real CLI walkthrough creates `dev` and `sre` groups, encrypts a local `.env` for both groups,
+restricts the production `.env` and Terraform secrets to SREs, and then adds a new developer who can
+decrypt only the local `.env`.
+
+![GitVaulty terminal demo showing group-based development, production, and Terraform secret access](demos/access-control.gif)
+
+The demo is reproducible from the checked-in [VHS tape](demos/access-control.tape) and
+[synchronous demo driver](demos/access-control-demo.sh). No private identity or plaintext secret is
+committed.
 
 ## Quick start
 
