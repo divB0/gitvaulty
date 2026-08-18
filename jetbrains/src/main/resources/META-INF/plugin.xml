@@ -1,0 +1,31 @@
+<idea-plugin>
+  <id>io.github.divb0.gitvaulty</id>
+  <name>GitVaulty</name>
+  <vendor url="https://github.com/divB0/gitvaulty">divB0</vendor>
+
+  <description><![CDATA[
+    <p>Edit authorized GitVaulty encrypted files in the native JetBrains text editor without
+    creating plaintext repository files.</p>
+  ]]></description>
+
+  <depends>com.intellij.modules.platform</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <fileEditorProvider implementation="io.github.divb0.gitvaulty.editor.GitVaultyFileEditorProvider"/>
+    <projectService serviceImplementation="io.github.divb0.gitvaulty.editor.GitVaultyEditorService"/>
+    <editorNotificationProvider implementation="io.github.divb0.gitvaulty.editor.GitVaultyEditorNotificationProvider"/>
+    <notificationGroup id="GitVaulty" displayType="BALLOON" isLogByDefault="true"/>
+  </extensions>
+
+  <actions>
+    <group id="GitVaulty.EditorActions" text="GitVaulty" popup="true">
+      <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+      <action id="GitVaulty.ShowAccess" class="io.github.divb0.gitvaulty.actions.ShowAccessAction" text="Show File Access"/>
+      <action id="GitVaulty.CopyLogicalPath" class="io.github.divb0.gitvaulty.actions.CopyLogicalPathAction" text="Copy Logical Path"/>
+      <action id="GitVaulty.CopyEncryptedPath" class="io.github.divb0.gitvaulty.actions.CopyEncryptedPathAction" text="Copy Encrypted Path"/>
+      <separator/>
+      <action id="GitVaulty.ReloadEncrypted" class="io.github.divb0.gitvaulty.actions.ReloadEncryptedAction" text="Reload Encrypted Version"/>
+      <action id="GitVaulty.SaveDecryptedCopy" class="io.github.divb0.gitvaulty.actions.SaveDecryptedCopyAction" text="Save Decrypted Copy Elsewhere"/>
+    </group>
+  </actions>
+</idea-plugin>
