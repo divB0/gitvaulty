@@ -42,6 +42,7 @@
   "scripts": {
     "build": "tsup && tsc -p tsconfig.build.json",
     "check": "npm run typecheck && npm test && npm run build && node scripts/package-smoke.mjs",
+    "demo:generate": "bash scripts/generate-demo.sh",
     "prepublishOnly": "npm run check",
     "test": "vitest run",
     "test:watch": "vitest",

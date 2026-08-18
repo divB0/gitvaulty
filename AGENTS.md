@@ -19,3 +19,4 @@
 
 - Classify and bump versions according to [HOW_TO_VERSION.md](HOW_TO_VERSION.md).
 - Every GitHub release changelog must include a concise summary of the main user-facing changes. Do not publish a release with only a comparison link or raw commit list.
+- For every minor or major release, compare user-facing CLI commands, prompts, output, and access-control behavior with the scenario contract in [docs/demo/instructions.md](docs/demo/instructions.md). If a captured scenario changed, update the tape, demo driver, and instructions as needed; run `npm run demo:generate`; visually review the regenerated GIF; and commit it with the release changes. If no scenario changed, record in the release work that the demo was reviewed and remains current.
