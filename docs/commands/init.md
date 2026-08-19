@@ -12,9 +12,9 @@ npx gitvaulty init
 
 1. Finds the root of the current Git repository.
 2. Stops immediately without prompting if `.gitvaulty/recipients.json` already exists.
-3. Loads your global age identity. If no identity exists, GitVaulty asks whether to create one.
+3. Loads your global master identity. If no identity exists, GitVaulty asks whether to create one.
 4. Prompts for your GitVaulty username. The default is derived from `git config user.email`, then `git config user.name`.
-5. Creates you as the first user and creates a default `team` group containing you.
+5. Creates you as the first user and as the first manager and member of the default `team` group.
 6. Writes `.gitvaulty/config.yaml`, an empty recipient registry, and the SOPS configuration.
 7. Offers to install the repository-scoped agent skill at `.agents/skills/gitvaulty/SKILL.md`.
 
@@ -22,10 +22,10 @@ The initial registry is `.gitvaulty/recipients.json`:
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "defaultGroup": "team",
-  "users": [{ "username": "alice", "recipient": "age1..." }],
-  "groups": [{ "name": "team", "members": ["alice"] }],
+  "users": [{ "username": "alice", "recipient": "age1...", "signingKey": "ed25519:..." }],
+  "groups": [{ "name": "team", "policies": [{ "revision": 1, "previous": null, "managers": ["alice"], "members": [{ "username": "alice", "recipient": "age1...", "signingKey": "ed25519:..." }], "signedBy": "alice", "signature": "ed25519:..." }] }],
   "files": []
 }
 ```
@@ -62,7 +62,7 @@ agent harness or sandbox.
 
 ## Identity storage
 
-Only your public age recipient is stored in the repository. A newly generated private identity is stored outside the repository, normally at `~/.config/gitvaulty/identity.txt`, with mode `0600`. Environment-based identities are used without creating that file.
+Only the public age recipient and signing key are stored in the repository. The master identity is stored outside the repository, normally at `~/.config/gitvaulty/identity.txt`, with mode `0600`. Derived private keys exist only in process memory.
 
 ## Important behavior
 

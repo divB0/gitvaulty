@@ -1,6 +1,6 @@
 # `gitvaulty key`
 
-Manage the global age identity GitVaulty uses to decrypt files and identify you in repositories.
+Manage the global GitVaulty identity used to derive encryption and signing keys.
 
 ## Usage
 
@@ -12,8 +12,8 @@ npx gitvaulty key <command>
 
 | Command | Purpose |
 | --- | --- |
-| [`key create`](key-create.md) | Generate and store a new global age identity. |
-| [`key public`](key-public.md) | Print the public age recipient for your identity. |
+| [`key create`](key-create.md) | Generate and store one master identity. |
+| [`key public`](key-public.md) | Print the public age recipient and signing key. |
 | [`key backup`](key-backup.md) | Print the private identity after confirmation. |
 | [`key restore`](key-restore.md) | Restore a backed-up private identity. |
 
@@ -22,11 +22,10 @@ npx gitvaulty key <command>
 GitVaulty checks identity sources in this order:
 
 1. `GITVAULTY_KEY`
-2. `SOPS_AGE_KEY`
-3. `GITVAULTY_AGE_KEY_FILE`
-4. `SOPS_AGE_KEY_FILE`
-5. The platform default file
+2. `GITVAULTY_AGE_KEY_FILE`
+3. `SOPS_AGE_KEY_FILE`
+4. The platform default file
 
 The normal default is `~/.config/gitvaulty/identity.txt`. On Windows, `%APPDATA%\gitvaulty\identity.txt` is used when `APPDATA` is set.
 
-The private identity starts with `AGE-SECRET-KEY-` and must never be committed or shared. Repositories store only the corresponding public `age1...` recipient.
+The private backup starts with `GITVAULTY-IDENTITY-`. GitVaulty derives a native age/X25519 key and an Ed25519 signing key just in time and does not cache either derived private key on disk. Repositories store only the public `age1...` recipient and `ed25519:...` verification key.

@@ -14,11 +14,11 @@ Example:
 npx gitvaulty group remove production alice
 ```
 
-The group and membership must already exist.
+The group and membership must already exist, and the current user must manage the group. A manager cannot be removed as a member; demote them first with [`gitvaulty group manager remove`](group-manager.md).
 
 ## What it changes
 
-GitVaulty removes the username from the group's membership in `.gitvaulty/recipients.json`. For files assigned to that group, the user loses access only when no other selected group or direct user grant still authorizes them. Files whose effective age recipient set changes are re-encrypted, and `.sops.yaml` is regenerated.
+GitVaulty appends a manager-signed revision without the username. For files assigned to that group, the user loses access only when no other selected group or direct user grant still authorizes them. Files whose effective age recipient set changes are re-encrypted, and `.sops.yaml` is regenerated.
 
 The operation refuses to remove your own access from any affected file. If any registry write or re-encryption fails, GitVaulty restores the previous registry, SOPS configuration, and ciphertext.
 

@@ -61,7 +61,7 @@ newer.
 
 ## Demo
 
-This real CLI walkthrough creates `dev` and `sre` groups, encrypts a local `.env` for both groups,
+This real CLI walkthrough creates manager-controlled `dev` and `sre` groups, encrypts a local `.env` for both groups,
 restricts the production `.env` and Terraform secrets to SREs, and then adds a new developer who can
 decrypt only the local `.env`.
 
@@ -79,7 +79,7 @@ Run these commands inside an existing Git repository. Initialize GitVaulty first
 npx gitvaulty init
 ```
 
-Initialization creates a `team` group containing you. New and imported files use `team` by default,
+Initialization creates a `team` group with you as its manager and first member. New and imported files use `team` by default,
 so the normal workflow needs no access flags. It also creates the public recipient registry, the
 repository preferences, and the SOPS configuration.
 
@@ -116,12 +116,13 @@ git add .gitvaulty/recipients.json
 git commit -m "chore: register alice's GitVaulty key"
 ```
 
-The command creates a private age identity when needed, but commits only its public `age1...`
-recipient. Alice opens a pull request with that commit. Her private `AGE-SECRET-KEY-...` identity
+The command creates one private GitVaulty master identity when needed, but commits only its public
+age recipient and Ed25519 verification key. Alice opens a pull request with that commit. Her private
+`GITVAULTY-IDENTITY-...` backup
 must never be shared or committed.
 
-After reviewing Alice's registration, a developer who already has access checks out the commit and
-adds her to the default group:
+After reviewing Alice's registration, a manager of the default group checks out the commit and adds
+her to it:
 
 ```sh
 npx gitvaulty group add team alice
@@ -130,7 +131,8 @@ git add -u -- '*.gitvaulty'
 git commit -m "chore: grant alice team access"
 ```
 
-`group add` re-encrypts every affected file for the updated group. Alice can decrypt those files
+`group add` appends a manager-signed policy revision and re-encrypts every affected file for the
+updated group. Alice can decrypt those files
 after the access commit is merged and pulled. The public-key commit and access-grant commit are
 separate so an existing authorized developer explicitly approves access.
 
@@ -212,6 +214,7 @@ GitVaulty removes unchanged plaintext files created by that invocation when the 
 ```sh
 npx gitvaulty group create production
 npx gitvaulty group add production alice
+npx gitvaulty group manager add production alice
 npx gitvaulty create .env.production --group production
 ```
 
@@ -273,7 +276,7 @@ historical ciphertext they already copied, so rotate every external credential t
 
 ### Identity and access commands
 
-- [`gitvaulty key`](docs/commands/key.md) — Manage your global age identity:
+- [`gitvaulty key`](docs/commands/key.md) — Manage your global master identity:
   [`create`](docs/commands/key-create.md),
   [`public`](docs/commands/key-public.md),
   [`backup`](docs/commands/key-backup.md), and
@@ -287,6 +290,7 @@ historical ciphertext they already copied, so rotate every external credential t
   [`create`](docs/commands/group-create.md),
   [`add`](docs/commands/group-add.md),
   [`remove`](docs/commands/group-remove.md),
+  [`manager`](docs/commands/group-manager.md),
   [`list`](docs/commands/group-list.md), and
   [`delete`](docs/commands/group-delete.md).
 
@@ -585,15 +589,18 @@ npx gitvaulty user remove
 npx gitvaulty group create production
 npx gitvaulty group add production alice
 npx gitvaulty group remove production alice
+npx gitvaulty group manager add production alice
+npx gitvaulty group manager remove production alice
 npx gitvaulty group list
 npx gitvaulty group delete production
 ```
 
-The global age identity normally lives at `~/.config/gitvaulty/identity.txt`. Back it up once with
-`gitvaulty key backup`; the same identity works across GitVaulty repositories.
+The global GitVaulty master identity normally lives at `~/.config/gitvaulty/identity.txt`. Back it
+up once with `gitvaulty key backup`; the same identity works across GitVaulty repositories. Native
+age/X25519 and Ed25519 keys are derived in memory for each command and are never cached on disk.
 
-A new developer runs `gitvaulty user register <username>` and commits their public recipient with no
-access. An existing authorized developer reviews that commit and runs
+A new developer runs `gitvaulty user register <username>` and commits both public keys with no
+access. An existing group manager reviews that commit and runs
 `gitvaulty group add <group> <username>` to approve access. `user add` remains available as an
 interactive shortcut when an authorized developer already has someone else's public recipient.
 Private keys are never shared.
@@ -611,9 +618,14 @@ policy with repeatable flags:
 npx gitvaulty access .env.production --group production --group platform --user alice
 ```
 
-Adding or removing a group member automatically re-encrypts every affected file for its new exact
-recipient set. A group cannot be deleted while a file uses it, and the default `team` group cannot
-be deleted.
+Only a current group manager can add or remove members or promote or demote managers. Every manager
+is also a member and can read the group's secrets. Each change appends a signed, revision-linked
+policy and automatically re-encrypts every affected file for its new exact recipient set. A group
+cannot be deleted while a file uses it, and the default `team` group cannot be deleted.
+
+The first policy revision is trusted through Git history. Protect the default branch and review
+changes to `.gitvaulty/recipients.json`; cryptography detects edits within the accepted policy chain,
+while Git review prevents an attacker from replacing that chain with a different genesis policy.
 
 Removing a user rotates every affected file's data key and removes that recipient. It cannot erase
 Git history or plaintext the user previously copied, so rotate external credentials after
@@ -622,11 +634,11 @@ offboarding.
 CI and service accounts can inject a separate private identity:
 
 ```sh
-GITVAULTY_KEY='AGE-SECRET-KEY-...' npx gitvaulty run --all -- npm start
+GITVAULTY_KEY='GITVAULTY-IDENTITY-...' npx gitvaulty run --all -- npm start
 ```
 
-`SOPS_AGE_KEY` is also supported. Mounted keys can use
-`GITVAULTY_AGE_KEY_FILE=/secure/identity.txt` or `SOPS_AGE_KEY_FILE`.
+Mounted master identities can use `GITVAULTY_AGE_KEY_FILE=/secure/identity.txt` or
+`SOPS_AGE_KEY_FILE`. GitVaulty derives and passes the native age identity to SOPS internally.
 
 ## Install in a project
 

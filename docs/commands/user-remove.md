@@ -24,7 +24,7 @@ After confirmation, GitVaulty removes the user:
 - from every group membership;
 - from every direct file grant.
 
-It regenerates `.sops.yaml` and re-encrypts every file whose effective recipient set changed. If the removed user still had equivalent access through no remaining policy—which is normally the result after deleting the user—the new ciphertext no longer contains their recipient.
+The current user must manage every group from which the user is removed. A user who is still a manager must be demoted first. GitVaulty appends signed membership revisions, regenerates `.sops.yaml`, and re-encrypts every file whose effective recipient set changed.
 
 You cannot remove the user corresponding to your current private identity. The operation also refuses any change that would remove your own access from an affected file. If a write or re-encryption fails, the previous registry, SOPS configuration, and ciphertext are restored.
 

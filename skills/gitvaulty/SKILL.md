@@ -27,6 +27,11 @@ description: Use GitVaulty-protected development files safely when running appli
 - Never use `cat`, shell interpolation, command substitution, or debug tracing to expose a secret.
 - Never commit plaintext secret files. Commit only the corresponding `*.gitvaulty` files and public
   GitVaulty metadata.
+- Treat `.gitvaulty/recipients.json` as signed access-control policy. Do not edit it by hand, replace
+  policy history, or run membership commands unless the task explicitly authorizes an access change.
+- Ordinary group members may decrypt but cannot change membership. Use group membership or manager
+  commands only as a registered manager, and include the signed registry and re-encrypted files in
+  the same reviewed commit.
 - Prefer `gitvaulty run` for temporary access. Use `gitvaulty materialize` only when persistent local
   plaintext is necessary, then use `gitvaulty status` and `gitvaulty clean` when finished.
 - Do not modify a materialized secret unless the task explicitly requires changing that secret.

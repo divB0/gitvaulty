@@ -21,6 +21,7 @@ GitVaulty refuses to delete:
 - the default group, initially `team`;
 - a group that does not exist;
 - a group still named in any file's access policy.
+- a group the current user does not manage.
 
 Remove the group from every affected file first with [`gitvaulty access`](access.md). The group may still contain members when deleted; membership alone does not block deletion.
 
@@ -28,7 +29,7 @@ Remove the group from every affected file first with [`gitvaulty access`](access
 
 The command removes the group from `.gitvaulty/recipients.json` and regenerates `.sops.yaml`. Because deletion is allowed only when no file uses the group, no ciphertext needs re-encryption.
 
-The command requires a registered local age identity. It does not ask for confirmation and does not stage or commit changes.
+The command requires a registered manager identity. It does not ask for confirmation and does not stage or commit changes.
 
 ## Related commands
 
