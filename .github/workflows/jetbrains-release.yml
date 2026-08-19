@@ -199,6 +199,7 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --title "GitVaulty for JetBrains ${RELEASE_TAG#jetbrains-v}" \
               --notes "Adds native editing for authorized GitVaulty files across compatible JetBrains IDEs. Saves reuse GitVaulty's verified encryption and atomic replacement, stale ciphertext is protected by fingerprints, and the plugin downloads only digest-verified native runtimes for macOS, Linux, and Windows."
+          fi
 
   marketplace:
     name: Publish to JetBrains Marketplace
