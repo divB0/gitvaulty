@@ -8,8 +8,9 @@ deleting another run's repository, identities, or local Git remote.
 ## Approach
 
 Keep the existing host-based VHS workflow and replace its three fixed `/tmp` paths with one unique
-runtime directory created atomically by `mktemp -d`. The generator wrapper owns that directory and
-exports three paths beneath it for the working repository, runtime identities, and bare Git remote.
+runtime directory beneath `/tmp`, created atomically by `mktemp -d`. The generator wrapper owns that
+directory and exports three paths beneath it for the working repository, runtime identities, and
+bare Git remote.
 VHS inherits those variables and uses them during its hidden setup. A wrapper-level `EXIT` trap
 removes only the owning run's parent directory on success or failure.
 
@@ -20,8 +21,9 @@ permissions; this change prevents run-to-run collisions but does not create a se
 
 ## Data flow and failure handling
 
-`npm run demo:generate` resolves the worktree root, allocates a runtime parent beneath `${TMPDIR}`
-(falling back to `/tmp`), exports the three child paths, builds the CLI, and starts VHS. The tape
+`npm run demo:generate` resolves the worktree root, allocates a runtime parent beneath `/tmp`,
+exports the three child paths, builds the CLI, and starts VHS. Keeping the default under `/tmp`
+prevents macOS's user-specific `${TMPDIR}` path from appearing in recorded Git output. The tape
 creates and uses only those child paths. The GIF stays worktree-relative at
 `demos/access-control.gif`, so separate worktrees also have separate outputs.
 

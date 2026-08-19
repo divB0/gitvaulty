@@ -22,9 +22,9 @@ Type@0ms 'export GITVAULTY_CLI="$PWD/dist/cli.js"'
 Enter
 Type@0ms 'export DEMO_SCRIPT="$PWD/demos/access-control-demo.sh"'
 Enter
-Type@0ms "export DEMO_DIR=/tmp/gitvaulty-readme-demo DEMO_KEYS=/tmp/gitvaulty-readme-keys DEMO_REMOTE=/tmp/gitvaulty-readme-remote.git"
+Type@0ms ': "${DEMO_DIR:?Demo repository path was not provided}" "${DEMO_KEYS:?Demo identity path was not provided}" "${DEMO_REMOTE:?Demo remote path was not provided}"'
 Enter
-Type@0ms 'cd /tmp && rm -rf "$DEMO_DIR" "$DEMO_KEYS" "$DEMO_REMOTE" && mkdir -p "$DEMO_DIR" "$DEMO_KEYS"'
+Type@0ms 'mkdir -p "$DEMO_DIR" "$DEMO_KEYS"'
 Enter
 Type@0ms 'git init -q --bare "$DEMO_REMOTE" && cd "$DEMO_DIR" && git init -q -b main && git remote add origin "$DEMO_REMOTE"'
 Enter
@@ -63,8 +63,3 @@ Type 'bash "$DEMO_SCRIPT"'
 Enter
 Wait+Screen@600s /Demo complete/
 Sleep 4s
-
-# Remove all runtime identities and plaintext after the recording.
-Hide
-Type@0ms 'cd /tmp && rm -rf "$DEMO_DIR" "$DEMO_KEYS" "$DEMO_REMOTE"'
-Enter

@@ -7,10 +7,9 @@ readonly repo_root
 readonly demo_output="demos/access-control.gif"
 
 cleanup_demo_runtime() {
-  rm -rf -- \
-    /tmp/gitvaulty-readme-demo \
-    /tmp/gitvaulty-readme-keys \
-    /tmp/gitvaulty-readme-remote.git
+  if [[ -n "${demo_runtime_root:-}" ]]; then
+    rm -rf -- "$demo_runtime_root"
+  fi
 }
 
 trap cleanup_demo_runtime EXIT
@@ -26,6 +25,14 @@ if (( ${#missing_tools[@]} > 0 )); then
   printf 'Missing required demo tools: %s\n' "${missing_tools[*]}" >&2
   exit 1
 fi
+
+demo_tmp_root="${GITVAULTY_DEMO_TMPDIR:-/tmp}"
+readonly demo_tmp_root
+demo_runtime_root="$(mktemp -d "$demo_tmp_root/gitvaulty-readme.XXXXXX")"
+readonly demo_runtime_root
+export DEMO_DIR="$demo_runtime_root/repository"
+export DEMO_KEYS="$demo_runtime_root/keys"
+export DEMO_REMOTE="$demo_runtime_root/remote.git"
 
 cd "$repo_root"
 

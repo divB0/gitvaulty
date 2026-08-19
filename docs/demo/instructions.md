@@ -31,11 +31,22 @@ The command:
 2. builds `dist/cli.js` from the current source;
 3. runs the VHS tape;
 4. writes `demos/access-control.gif`;
-5. removes the disposable working repository, bare Git remote, identities, and plaintext from
-   `/tmp`, including when the recording fails.
+5. removes that invocation's disposable runtime directory, including its working repository, bare
+   Git remote, identities, and plaintext, even when the recording fails.
 
 Do not invoke the visible driver directly unless you are debugging the scenario. The tape prepares
 its temporary repository, identities, editor, and environment before starting the driver.
+
+## Runtime isolation
+
+Each invocation atomically creates its own `/tmp/gitvaulty-readme.XXXXXX` runtime directory. The
+working repository, generated identities, and local bare Git remote are children of that directory,
+and the generator's cleanup trap removes only the directory owned by that invocation. The GIF stays
+inside the invoking worktree at `demos/access-control.gif`, so separate worktrees can generate demos
+in parallel without deleting one another's runtime files or overwriting one another's output.
+
+The commands still run directly on the host with the current user's permissions. This isolates
+concurrent demo runs from each other; it is not a container or security sandbox.
 
 ## People in the demo
 
@@ -55,9 +66,9 @@ changes, start a new screen before showing their commands.
 
 ## Git workflow
 
-The tape creates a disposable bare repository at `/tmp/gitvaulty-readme-remote.git` and configures it
-as `origin`. This keeps the recording deterministic and offline while still exercising real branches,
-commits, merges, pulls, and pushes.
+The tape creates a disposable bare repository at `remote.git` inside the invocation's unique runtime
+directory and configures it as `origin`. This keeps the recording offline while still exercising real
+branches, commits, merges, pulls, and pushes.
 
 A pushed `onboard/<name>` branch represents opening a pull request on a hosted Git service. The
 subsequent Admin screen represents reviewing and merging that pull request before granting access.
@@ -130,8 +141,8 @@ After generation, play the GIF from beginning to end and confirm:
 - Jules's two authorization failures are readable;
 - Jules's `dev` grant visibly unlocks every `dev` file without unlocking either SRE-only file;
 - Sam's Terraform success and final missing-file status are readable;
-- no secret value, master identity, derived private key, or personal workstation path is visible; the expected disposable
-  `/tmp/gitvaulty-readme-remote.git` push target is allowed;
+- no secret value, master identity, derived private key, or personal workstation path is visible;
+  the expected disposable `/tmp/gitvaulty-readme.*/remote.git` push target is allowed;
 - the final frame remains long enough to read.
 
 For targeted frame inspection, first read the duration:
@@ -154,12 +165,11 @@ ffmpeg -v error -y \
   /tmp/gitvaulty-demo-frame.png
 ```
 
-Finally, verify the disposable paths are gone:
+Finally, verify that the completed invocation left no runtime directory behind. If no other demo is
+currently running, this command prints nothing:
 
 ```sh
-test ! -e /tmp/gitvaulty-readme-demo
-test ! -e /tmp/gitvaulty-readme-keys
-test ! -e /tmp/gitvaulty-readme-remote.git
+find /tmp -maxdepth 1 -type d -name 'gitvaulty-readme.*' -print
 ```
 
 Commit the tape, driver, instructions, and regenerated GIF together whenever they change.

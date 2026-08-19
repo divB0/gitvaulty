@@ -44,9 +44,10 @@ Expected: FAIL because both invocations report the fixed shared `/tmp` locations
 
 **Step 1: Implement wrapper ownership**
 
-Allocate `demo_runtime_root` with `mktemp -d "${TMPDIR:-/tmp}/gitvaulty-readme.XXXXXX"` after
-prerequisite validation. Export `DEMO_DIR`, `DEMO_KEYS`, and `DEMO_REMOTE` beneath that root. Replace
-the fixed-path cleanup with `rm -rf -- "$demo_runtime_root"` guarded by a non-empty value.
+After prerequisite validation, default the temporary parent to `/tmp` and allocate
+`demo_runtime_root` with `mktemp -d "$demo_tmp_root/gitvaulty-readme.XXXXXX"`. Export `DEMO_DIR`,
+`DEMO_KEYS`, and `DEMO_REMOTE` beneath that root. Replace the fixed-path cleanup with
+`rm -rf -- "$demo_runtime_root"` guarded by a non-empty value.
 
 **Step 2: Make the tape consume inherited paths**
 
