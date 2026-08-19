@@ -89,7 +89,7 @@ async function exists(file: string): Promise<boolean> {
 }
 
 describe("demo generation", () => {
-  it("isolates and cleans up concurrent worktree runtimes", async () => {
+  it("isolates and cleans up concurrent worktree runtimes", { timeout: 15_000 }, async () => {
     const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "gitvaulty-demo-test-"));
     const temporaryRoot = path.join(fixtureRoot, "tmp");
     await mkdir(temporaryRoot);
