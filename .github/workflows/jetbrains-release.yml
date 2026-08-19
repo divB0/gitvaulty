@@ -136,35 +136,23 @@ jobs:
         with:
           name: gitvaulty-jetbrains-plugin
           path: packaged
-      - name: Require author-signing credentials
+      - name: Build GitVaulty secret runner
+        run: npm ci && npm run build
+      - name: Require GitVaulty CI identity
         shell: bash
         env:
-          CERTIFICATE_CHAIN: ${{ secrets.JETBRAINS_CERTIFICATE_CHAIN }}
-          PRIVATE_KEY: ${{ secrets.JETBRAINS_PRIVATE_KEY }}
-          PRIVATE_KEY_PASSWORD: ${{ secrets.JETBRAINS_PRIVATE_KEY_PASSWORD }}
-        run: |
-          test -n "$CERTIFICATE_CHAIN"
-          test -n "$PRIVATE_KEY"
-          test -n "$PRIVATE_KEY_PASSWORD"
-      - name: Prepare public signature certificate
-        shell: bash
-        env:
-          CERTIFICATE_CHAIN: ${{ secrets.JETBRAINS_CERTIFICATE_CHAIN }}
-        run: >-
-          node -e
-          'require("node:fs").writeFileSync(process.argv[1], process.env.CERTIFICATE_CHAIN, { mode: 0o600 })'
-          "${RUNNER_TEMP}/gitvaulty-signing-chain.crt"
+          GITVAULTY_KEY: ${{ secrets.GITVAULTY_KEY }}
+        run: test -n "$GITVAULTY_KEY"
       - name: Sign and verify plugin
         env:
-          CERTIFICATE_CHAIN: ${{ secrets.JETBRAINS_CERTIFICATE_CHAIN }}
-          PRIVATE_KEY: ${{ secrets.JETBRAINS_PRIVATE_KEY }}
-          PRIVATE_KEY_PASSWORD: ${{ secrets.JETBRAINS_PRIVATE_KEY_PASSWORD }}
+          GITVAULTY_KEY: ${{ secrets.GITVAULTY_KEY }}
         run: >-
-          ./jetbrains/gradlew -p jetbrains
-          signPlugin verifyPluginSignature
-          -PgitvaultyRuntimeManifest=${{ github.workspace }}/packaged/gitvaulty-runtime-manifest.json
-          -PgitvaultyVerificationCertificate=${{ runner.temp }}/gitvaulty-signing-chain.crt
-          --console=plain
+          node dist/cli.js run
+          -f .github/jetbrains-release-secrets/certificate-chain.pem
+          -f .github/jetbrains-release-secrets/private-key.pem
+          -f .github/jetbrains-release-secrets/private-key-password.txt
+          -- node scripts/run-jetbrains-release.mjs sign
+          packaged/gitvaulty-runtime-manifest.json
       - name: Stage signed release files
         shell: bash
         run: |
@@ -223,31 +211,30 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          package-manager-cache: false
       - uses: gradle/actions/setup-gradle@v5
       - uses: actions/download-artifact@v6
         with:
           name: gitvaulty-jetbrains-signed
           path: packaged
-      - name: Require signing and publishing credentials
+      - name: Build GitVaulty secret runner
+        run: npm ci && npm run build
+      - name: Require GitVaulty CI identity
         shell: bash
         env:
-          CERTIFICATE_CHAIN: ${{ secrets.JETBRAINS_CERTIFICATE_CHAIN }}
-          PRIVATE_KEY: ${{ secrets.JETBRAINS_PRIVATE_KEY }}
-          PRIVATE_KEY_PASSWORD: ${{ secrets.JETBRAINS_PRIVATE_KEY_PASSWORD }}
-          PUBLISH_TOKEN: ${{ secrets.JETBRAINS_PUBLISH_TOKEN }}
-        run: |
-          test -n "$CERTIFICATE_CHAIN"
-          test -n "$PRIVATE_KEY"
-          test -n "$PRIVATE_KEY_PASSWORD"
-          test -n "$PUBLISH_TOKEN"
+          GITVAULTY_KEY: ${{ secrets.GITVAULTY_KEY }}
+        run: test -n "$GITVAULTY_KEY"
       - name: Sign and publish plugin
         env:
-          CERTIFICATE_CHAIN: ${{ secrets.JETBRAINS_CERTIFICATE_CHAIN }}
-          PRIVATE_KEY: ${{ secrets.JETBRAINS_PRIVATE_KEY }}
-          PRIVATE_KEY_PASSWORD: ${{ secrets.JETBRAINS_PRIVATE_KEY_PASSWORD }}
-          PUBLISH_TOKEN: ${{ secrets.JETBRAINS_PUBLISH_TOKEN }}
+          GITVAULTY_KEY: ${{ secrets.GITVAULTY_KEY }}
         run: >-
-          ./jetbrains/gradlew -p jetbrains
-          signPlugin publishPlugin
-          -PgitvaultyRuntimeManifest=${{ github.workspace }}/packaged/gitvaulty-runtime-manifest.json
-          --console=plain
+          node dist/cli.js run
+          -f .github/jetbrains-release-secrets/certificate-chain.pem
+          -f .github/jetbrains-release-secrets/private-key.pem
+          -f .github/jetbrains-release-secrets/private-key-password.txt
+          -f .github/jetbrains-release-secrets/publish-token.txt
+          -- node scripts/run-jetbrains-release.mjs publish
+          packaged/gitvaulty-runtime-manifest.json

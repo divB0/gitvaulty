@@ -4,7 +4,7 @@
 
 **Goal:** Produce a verified, author-signed GitVaulty JetBrains plugin artifact for the mandatory first manual Marketplace upload, publish its native runtime assets, and establish automated updates.
 
-**Architecture:** Extend the existing JetBrains release workflow with a signing job between plugin packaging and GitHub Release creation. The job rebuilds the plugin with the exact five-platform runtime manifest, signs it from GitHub Actions secrets, verifies its signature, and makes the signed ZIP the public release artifact. JetBrains Marketplace account, vendor, token, and first-upload actions remain external one-time setup; no credentials enter Git, command arguments, logs, or chat.
+**Architecture:** Extend the existing JetBrains release workflow with a signing job between plugin packaging and GitHub Release creation. The job rebuilds the plugin with the exact five-platform runtime manifest, decrypts SRE-protected release credentials through the registered `github-ci` identity, signs and verifies the artifact, and makes the signed ZIP the public release artifact. JetBrains Marketplace account, vendor, token, and first-upload actions remain external one-time setup; credentials enter Git only as GitVaulty ciphertext and never enter command arguments, logs, or chat.
 
 **Tech Stack:** GitHub Actions, IntelliJ Platform Gradle Plugin 2.x, Marketplace ZIP Signer, GitHub Releases, JetBrains Marketplace, GitVaulty secret handling
 
@@ -40,7 +40,7 @@ Commit: `docs: plan first JetBrains Marketplace publication`
 
 **Step 1: Add the signed-plugin job**
 
-After the five runtimes and manifest-backed plugin package are built, require the four existing JetBrains secrets, run `signPlugin` and `verifyPluginSignature`, and upload the signed ZIP plus runtime manifest as a flat artifact.
+After the five runtimes and manifest-backed plugin package are built, require the GitVaulty CI identity, expose only the three SRE-protected signing files for the Gradle child process, run `signPlugin` and `verifyPluginSignature`, and upload the signed ZIP plus runtime manifest as a flat artifact.
 
 **Step 2: Make the GitHub Release use the signed ZIP**
 
@@ -104,9 +104,11 @@ In the signed-in Marketplace session, accept the developer agreement, choose the
 
 Generate the private key and certificate locally without printing them. Create a permanent Marketplace token in **My Tokens**. Obtain action-time confirmation before creating the persistent token or transmitting any credential.
 
-**Step 3: Add GitHub Actions secrets**
+**Step 3: Initialize SRE-protected release credentials**
 
-Add `JETBRAINS_CERTIFICATE_CHAIN`, `JETBRAINS_PRIVATE_KEY`, `JETBRAINS_PRIVATE_KEY_PASSWORD`, and `JETBRAINS_PUBLISH_TOKEN` in the repository Actions secrets UI. Confirm immediately before transmitting them to GitHub.
+Initialize GitVaulty in the repository, create the `sre` group with the human maintainer as manager,
+register `github-ci` as a member, and commit the JetBrains credentials only as group-protected
+ciphertext. Add only the `github-ci` master identity as the `GITVAULTY_KEY` Actions secret.
 
 ### Task 5: Create and verify version 0.1.0
 

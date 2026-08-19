@@ -99,12 +99,12 @@ sandbox IDE for manual testing.
 
 Release automation builds the runtime natively for all five targets, produces an exact manifest,
 embeds it in the plugin, author-signs and verifies the plugin ZIP, and creates a GitHub Release draft
-with a real changelog summary. The release workflow requires these GitHub Actions secrets:
-
-- `JETBRAINS_CERTIFICATE_CHAIN`
-- `JETBRAINS_PRIVATE_KEY`
-- `JETBRAINS_PRIVATE_KEY_PASSWORD`
-- `JETBRAINS_PUBLISH_TOKEN` for Marketplace updates
+with a real changelog summary. The signing certificate, encrypted private key, password, and
+Marketplace token are committed only as `sre`-protected GitVaulty ciphertext under
+`.github/jetbrains-release-secrets/`. GitHub Actions stores one bootstrap secret,
+`GITVAULTY_KEY`, for the registered `github-ci` SRE member. The workflow exposes only the exact
+release credentials required by each signing or publishing command and removes their temporary
+plaintext files when the command exits.
 
 JetBrains requires the first plugin version to be uploaded manually so its vendor, license, source
 repository, tags, release channel, and listing details can be selected. Create and push the

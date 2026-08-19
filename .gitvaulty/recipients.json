@@ -1,0 +1,104 @@
+{
+  "version": 4,
+  "defaultGroup": "team",
+  "users": [
+    {
+      "username": "andrea",
+      "recipient": "age1khpc7jsv66qdf5z58yql40ggfkazyzana5cwq2lzkcku3m0zuudqgd74n5",
+      "signingKey": "ed25519:hO56czR-G5k3FA9w9ayaH8awGZ5EU2vKIqJMME79-f4"
+    },
+    {
+      "username": "github-ci",
+      "recipient": "age1jxrvdkk4eagskp5mp9yde6tq8xn86546mq4hugc9nw65f8rdkcpq5g3nzt",
+      "signingKey": "ed25519:Bc4IZBkFT5qu8RmqIrQpN0Zx3IP2HEUB2EM0KgC4wBc"
+    }
+  ],
+  "groups": [
+    {
+      "name": "sre",
+      "policies": [
+        {
+          "revision": 1,
+          "previous": null,
+          "managers": [
+            "andrea"
+          ],
+          "members": [
+            {
+              "username": "andrea",
+              "recipient": "age1khpc7jsv66qdf5z58yql40ggfkazyzana5cwq2lzkcku3m0zuudqgd74n5",
+              "signingKey": "ed25519:hO56czR-G5k3FA9w9ayaH8awGZ5EU2vKIqJMME79-f4"
+            }
+          ],
+          "signedBy": "andrea",
+          "signature": "ed25519:EJdvyDc3lk4HXfUKj_vGnonGbqujKztsdiSoNzpU4LdqYddDw8PXNYUuoy0TNnXvsh3joi8Pi8NPNVZus2mJBg"
+        },
+        {
+          "revision": 2,
+          "previous": "sha256:a229affe8fae794e5a61e0cc0d0b844f92b3ec2a0c5caa8d5c85d6e876f9e112",
+          "managers": [
+            "andrea"
+          ],
+          "members": [
+            {
+              "username": "andrea",
+              "recipient": "age1khpc7jsv66qdf5z58yql40ggfkazyzana5cwq2lzkcku3m0zuudqgd74n5",
+              "signingKey": "ed25519:hO56czR-G5k3FA9w9ayaH8awGZ5EU2vKIqJMME79-f4"
+            },
+            {
+              "username": "github-ci",
+              "recipient": "age1jxrvdkk4eagskp5mp9yde6tq8xn86546mq4hugc9nw65f8rdkcpq5g3nzt",
+              "signingKey": "ed25519:Bc4IZBkFT5qu8RmqIrQpN0Zx3IP2HEUB2EM0KgC4wBc"
+            }
+          ],
+          "signedBy": "andrea",
+          "signature": "ed25519:781WrPGNeuw6pyzgAVHHFlSgdrw3wqG3rHqfMOM2UoKmAq0T1A97iEkTEmKzzj7Ps3cZc_zkXnnMyKWjXShWBg"
+        }
+      ]
+    },
+    {
+      "name": "team",
+      "policies": [
+        {
+          "revision": 1,
+          "previous": null,
+          "managers": [
+            "andrea"
+          ],
+          "members": [
+            {
+              "username": "andrea",
+              "recipient": "age1khpc7jsv66qdf5z58yql40ggfkazyzana5cwq2lzkcku3m0zuudqgd74n5",
+              "signingKey": "ed25519:hO56czR-G5k3FA9w9ayaH8awGZ5EU2vKIqJMME79-f4"
+            }
+          ],
+          "signedBy": "andrea",
+          "signature": "ed25519:75pM3Ov4HBiY2PZp44zZzh41Jx7E9CSXG64Zpc55AGMqaw53KSsFzLo7O1BvJFDZD9cnxdwQRLX4n4HGZKyKCQ"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": ".github/jetbrains-release-secrets/certificate-chain.pem.gitvaulty",
+      "groups": [
+        "sre"
+      ],
+      "users": []
+    },
+    {
+      "path": ".github/jetbrains-release-secrets/private-key-password.txt.gitvaulty",
+      "groups": [
+        "sre"
+      ],
+      "users": []
+    },
+    {
+      "path": ".github/jetbrains-release-secrets/private-key.pem.gitvaulty",
+      "groups": [
+        "sre"
+      ],
+      "users": []
+    }
+  ]
+}
