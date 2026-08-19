@@ -37,8 +37,9 @@ downstream command does with the bytes; avoid tools that log, cache, or persist 
 
 The path must name a registered file accessible to the current identity. GitVaulty applies the same
 path, authorization, regular-file, symlink, and concurrent-ciphertext checks used by guarded
-editing. A missing identity is an error rather than an interactive key-creation flow, keeping stdout
-safe for pipelines.
+editing. A missing identity uses the shared restore/create/cancel flow only when interactive input
+and a separate diagnostic stream are available; otherwise it fails. Prompts and bootstrap notices
+use stderr, keeping stdout safe for pipelines.
 
 ## Related commands
 

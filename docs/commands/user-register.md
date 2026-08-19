@@ -16,9 +16,8 @@ npx gitvaulty user register alice
 
 The username is normalized to lowercase and must use letters, numbers, `.`, `_`, or `-`. GitVaulty
 loads your global master identity and derives its public `age1...` recipient and `ed25519:...`
-verification key. If no identity exists, it asks whether to create one. The private
-`GITVAULTY-IDENTITY-...` value is never written to the
-repository.
+verification key. If no identity exists, it offers masked restoration from a backup or creation of
+a new key. The private `GITVAULTY-IDENTITY-...` value is never written to the repository.
 
 ## What it changes
 
@@ -26,8 +25,10 @@ GitVaulty adds the username and both public keys to `.gitvaulty/recipients.json`
 memberships and no direct file grants. Existing groups, file policies, effective recipients, and
 ciphertext remain unchanged. The username and both public keys must be unique.
 
-The command requires an initialized GitVaulty repository but does not require access to any
-encrypted file. It does not stage or commit the registry change.
+The command prepares the repository automatically when needed and does not require access to any
+encrypted file. In a new repository, its `<username>` becomes the repository owner in the default
+`team` group instead of adding a duplicate registration. It does not stage or commit the registry
+change.
 
 ## Complete onboarding
 

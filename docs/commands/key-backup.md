@@ -8,7 +8,8 @@ Print your private GitVaulty master identity so it can be stored in a secure bac
 npx gitvaulty key backup
 ```
 
-GitVaulty first ensures an identity exists, then asks:
+GitVaulty first ensures an identity exists. If it is missing interactively, GitVaulty offers masked
+restoration from a backup, creation of a new key, or cancellation. It then asks:
 
 ```text
 Print your private GitVaulty key? Keep it secret. (y/N)

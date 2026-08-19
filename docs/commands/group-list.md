@@ -19,7 +19,11 @@ team (default)  alice     alice, bob, carol
 
 The default group is labeled `(default)`. Managers and members are sorted. Every manager also appears in the member column.
 
-The command reads and verifies every signed policy revision in `.gitvaulty/recipients.json`. It does not require your private identity, decrypt files, show which files use each group, or modify repository state.
+The command runs the standard repository preparation first, including the global identity check,
+implicit initialization or metadata repair, and managed agent-skill synchronization. It then reads
+and verifies every signed policy revision in `.gitvaulty/recipients.json` without decrypting files
+or showing which files use each group. In an already current repository, the listing itself does not
+modify access policy.
 
 ## Related commands
 

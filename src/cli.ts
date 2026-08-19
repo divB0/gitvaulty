@@ -27,6 +27,7 @@ import {
   diffSecretFiles,
   editSecretFile,
   encryptedFileFor,
+  ensureRepositoryMetadata,
   importSecretFile,
   initialize,
   isInitialized,
@@ -57,9 +58,8 @@ import { cleanupAbandonedEditDirectories } from "./edit-temp.js";
 import {
   agentSkillStatus,
   installAgentSkill,
-  type AgentSkillStatus,
 } from "./agent-skill.js";
-import { readRepositoryConfig, writeAgentSkillMode } from "./config.js";
+import { readRepositoryConfig } from "./config.js";
 import { formatSecretDiff } from "./diff.js";
 
 const packageManifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version?: unknown };
@@ -117,12 +117,53 @@ async function hasIdentity(): Promise<boolean> {
   }
 }
 
-async function ensureCliIdentity(): Promise<StoredIdentity> {
+type MissingIdentityChoice = "restore" | "create" | "cancel";
+
+function writeIdentityCreated(result: StoredIdentity, write = (message: string) => { process.stderr.write(message); }): void {
+  write(`Created global identity at ${identityFile()}.\nAge recipient: ${result.recipient}\nSigning key: ${result.signingKey}\nBack it up with \`gitvaulty key backup\`.\n`);
+}
+
+async function ensureCliIdentity(interactive: boolean): Promise<StoredIdentity> {
   if (await hasIdentity()) return currentIdentity();
-  if (!await confirm({ message: "No GitVaulty key found. Create one now?", default: true })) throw new Error("A GitVaulty key is required.");
+  if (!interactive) {
+    throw new GitVaultyError("A GitVaulty key is required. Run `gitvaulty key restore` or `gitvaulty key create` interactively.");
+  }
+  const choice = await select<MissingIdentityChoice>({
+    message: "No GitVaulty key found",
+    choices: [
+      { name: "Restore an existing backup", value: "restore" },
+      { name: "Create a new key", value: "create" },
+      { name: "Cancel", value: "cancel" },
+    ],
+  }, { output: process.stderr });
+  if (choice === "cancel") throw new GitVaultyError("A GitVaulty key is required.");
+  if (choice === "restore") {
+    const result = await restoreIdentity(
+      await password({ message: "Paste your GITVAULTY-IDENTITY backup", mask: "*" }, { output: process.stderr }),
+      identityFile(),
+    );
+    process.stderr.write(`Restored global key for ${result.recipient}.\n`);
+    return result;
+  }
   const result = await createIdentity();
-  process.stdout.write(`Created global identity at ${identityFile()}.\nAge recipient: ${result.recipient}\nSigning key: ${result.signingKey}\nBack it up with \`gitvaulty key backup\`.\n`);
+  writeIdentityCreated(result);
   return result;
+}
+
+async function bootstrapUsername(repo: Repository, interactive: boolean): Promise<string> {
+  const suggested = await localUsername(repo.root);
+  if (!interactive) {
+    if (suggested) return suggested;
+    throw new GitVaultyError("A GitVaulty username is required. Run a repository command interactively first.");
+  }
+  return normalizeUsername(await input({
+    message: "Your username",
+    default: suggested,
+    validate: (value) => {
+      try { normalizeUsername(value); return true; }
+      catch (error) { return (error as Error).message; }
+    },
+  }, { output: process.stderr }));
 }
 
 function collect(value: string, previous: string[]): string[] { return [...previous, value]; }
@@ -152,26 +193,8 @@ function runFiles(options: RunCommandOptions): string[] {
 
 type ConfirmTrackedImport = (options: { message: string; default: boolean }) => Promise<boolean>;
 
-export type AgentSkillDecision = "install" | "skip" | "disable";
-
 export interface AgentSkillPreflightOptions {
-  interactive?: boolean;
-  decide?: (status: Exclude<AgentSkillStatus, "current">) => Promise<AgentSkillDecision>;
-  writeOutput?: (message: string) => void;
-  writeWarning?: (message: string) => void;
-}
-
-async function promptForAgentSkill(status: Exclude<AgentSkillStatus, "current">): Promise<AgentSkillDecision> {
-  return select<AgentSkillDecision>({
-    message: status === "missing"
-      ? "GitVaulty's repository agent skill is missing"
-      : `The repository agent skill differs from GitVaulty ${packageVersion}; replacing it overwrites local customizations`,
-    choices: [
-      { name: status === "missing" ? "Install agent skill" : "Replace with this GitVaulty version", value: "install" },
-      { name: "Skip this time", value: "skip" },
-      { name: "Don't ask again in this repository", value: "disable" },
-    ],
-  });
+  writeNotice?: (message: string) => void;
 }
 
 export async function ensureRepositoryAgentSkill(
@@ -181,28 +204,9 @@ export async function ensureRepositoryAgentSkill(
   if ((await readRepositoryConfig(repo)).agentSkill.mode === "disabled") return;
   const status = await agentSkillStatus(repo.root);
   if (status === "current") return;
-
-  const writeOutput = options.writeOutput ?? ((message: string) => { process.stdout.write(message); });
-  const writeWarning = options.writeWarning ?? ((message: string) => { process.stderr.write(message); });
-  const interactive = options.interactive ?? Boolean(process.stdin.isTTY && process.stdout.isTTY);
-  if (!interactive) {
-    writeWarning(
-      `Warning: GitVaulty's repository agent skill is ${status}. Run a GitVaulty command interactively to manage it, `
-      + "or set agentSkill.mode to disabled in .gitvaulty/config.yaml.\n",
-    );
-    return;
-  }
-
-  const decision = await (options.decide ?? promptForAgentSkill)(status);
-  if (decision === "skip") return;
-  if (decision === "disable") {
-    await writeAgentSkillMode(repo, "disabled");
-    writeOutput("Disabled agent skill management for this repository. Commit .gitvaulty/config.yaml.\n");
-    return;
-  }
-
+  const writeNotice = options.writeNotice ?? ((message: string) => { process.stderr.write(message); });
   const result = await installAgentSkill(repo.root, { replace: true });
-  writeOutput(`${result === "updated" ? "Updated" : "Installed"} agent skill at .agents/skills/gitvaulty/SKILL.md.\n`);
+  writeNotice(`${result === "updated" ? "Updated" : "Installed"} agent skill at .agents/skills/gitvaulty/SKILL.md.\n`);
 }
 
 export async function importWithTrackedPrompt(
@@ -237,35 +241,39 @@ export async function importWithTrackedPrompt(
 
 export function createProgram(options: {
   agentSkillPreflight?: (repo: Repository) => Promise<void>;
+  interactive?: boolean;
 } = {}): Command {
   const program = new Command().name("gitvaulty").description("Git-backed secrets for humans.").version(packageVersion).enablePositionalOptions();
   const agentSkillPreflight = options.agentSkillPreflight ?? ensureRepositoryAgentSkill;
-  const preparedRepository = async (): Promise<Repository> => {
+  const interactive = options.interactive ?? Boolean(process.stdin.isTTY && process.stderr.isTTY);
+  const prepareRepository = async (initialUsername?: string): Promise<{ repo: Repository; initialized: boolean }> => {
     const repo = await findRepository();
-    if (await isInitialized(repo)) await agentSkillPreflight(repo);
-    return repo;
+    const identity = await ensureCliIdentity(interactive);
+    let initialized = false;
+    if (await isInitialized(repo)) {
+      await ensureRepositoryMetadata(repo);
+    } else {
+      const username = initialUsername ?? await bootstrapUsername(repo, interactive);
+      await initialize(repo, {
+        username,
+        recipient: identity.recipient,
+        signingKey: identity.signingKey,
+      });
+      initialized = true;
+      process.stderr.write("GitVaulty initialized.\n");
+    }
+    await agentSkillPreflight(repo);
+    return { repo, initialized };
   };
+  const preparedRepository = async (): Promise<Repository> => (await prepareRepository()).repo;
 
   program.command("init").description("Initialize GitVaulty in this repository").action(async () => {
-    const repo = await findRepository();
-    if (await isInitialized(repo)) throw new GitVaultyError("GitVaulty is already initialized.");
-    const identity = await ensureCliIdentity();
-    const username = await input({ message: "Your username", default: await localUsername(repo.root), validate: (value) => {
-      try { normalizeUsername(value); return true; }
-      catch (error) { return (error as Error).message; }
-    } });
-    await initialize(repo, {
-      username: normalizeUsername(username),
-      recipient: identity.recipient,
-      signingKey: identity.signingKey,
-    });
-    process.stdout.write("GitVaulty initialized.\n");
-    await agentSkillPreflight(repo);
+    await prepareRepository();
+    process.stdout.write("GitVaulty is ready.\n");
   });
 
   addAccessOptions(program.command("create <path>").description("Create an encrypted native file")).action(async (requested: string, options: AccessCommandOptions) => {
     const repo = await preparedRepository();
-    await ensureCliIdentity();
     const created = await createSecretFile(repo, requested, accessOptions(options));
     await editSecretFile(repo, created.file);
     process.stdout.write(`Created ${created.file}.gitvaulty.\n`);
@@ -276,7 +284,6 @@ export function createProgram(options: {
     .option("--update", "replace an existing encrypted file with the current plaintext"))
     .action(async (requested: string, options: ImportCommandOptions) => {
     const repo = await preparedRepository();
-    await ensureCliIdentity();
     if (options.update && (options.group.length > 0 || options.user.length > 0)) {
       throw new GitVaultyError("Use `gitvaulty access <path>` to change access for an existing file.");
     }
@@ -287,7 +294,6 @@ export function createProgram(options: {
 
   addAccessOptions(program.command("access <path>").description("Change who can access an encrypted file")).action(async (requested: string, options: AccessCommandOptions) => {
     const repo = await preparedRepository();
-    await ensureCliIdentity();
     const registry = await readRegistry(repo);
     const provided = accessOptions(options);
     let groups = provided.groups;
@@ -312,7 +318,6 @@ export function createProgram(options: {
 
   program.command("edit <path>").description("Edit an encrypted file by its plaintext path").action(async (file: string) => {
     const repo = await preparedRepository();
-    await ensureCliIdentity();
     const [status] = await statusSecretFiles(repo, [file]);
     let resolution: "error" | "use-local" | "discard-local" = "error";
     if (status?.state === "modified") {
@@ -334,10 +339,10 @@ export function createProgram(options: {
     .description("Decrypt a file to standard output")
     .option("--force", "allow output to an interactive terminal")
     .action(async (file: string, options: CatCommandOptions) => {
+      const repo = await preparedRepository();
       if (process.stdout.isTTY && !options.force) {
         throw new GitVaultyError("Refusing to print a secret to an interactive terminal. Pipe the output or use --force.");
       }
-      const repo = await preparedRepository();
       const opened = await readSecretFile(repo, file);
       process.stdout.write(opened.plaintext);
     });
@@ -347,7 +352,6 @@ export function createProgram(options: {
     .option("--exit-code", "exit with 1 when differences exist")
     .action(async (paths: string[], options: DiffCommandOptions) => {
       const repo = await preparedRepository();
-      await ensureCliIdentity();
       const differences = await diffSecretFiles(repo, paths);
       for (const difference of differences) {
         process.stdout.write(formatSecretDiff(difference.file, difference.oldContent, difference.newContent));
@@ -364,14 +368,12 @@ export function createProgram(options: {
 
   addFileOptions(program.command("materialize").description("Create persistent local plaintext files")).action(async (options: FileCommandOptions) => {
     const repo = await preparedRepository();
-    await ensureCliIdentity();
     const created = await materializeSecretFiles(repo, options.file);
     process.stdout.write(created.length ? `${created.map((file) => `Materialized ${file}.`).join("\n")}\n` : "All selected files are already materialized.\n");
   });
 
   addFileOptions(program.command("clean").description("Remove unchanged materialized plaintext files")).action(async (options: FileCommandOptions) => {
     const repo = await preparedRepository();
-    await ensureCliIdentity();
     const result = await cleanSecretFiles(repo, options.file);
     for (const file of result.removed) process.stdout.write(`Removed ${file}.\n`);
     for (const file of result.retained) process.stderr.write(`Kept ${file.file}: ${file.state}.\n`);
@@ -379,7 +381,6 @@ export function createProgram(options: {
 
   addFileOptions(program.command("status").description("Show plaintext materialization status")).action(async (options: FileCommandOptions) => {
     const repo = await preparedRepository();
-    await ensureCliIdentity();
     for (const file of await statusSecretFiles(repo, options.file)) {
       process.stdout.write(`${file.state.padEnd(8)} ${file.file}\n`);
     }
@@ -392,9 +393,8 @@ export function createProgram(options: {
     .allowUnknownOption(true)
     .passThroughOptions()
     .action(async (command: string[], options: RunCommandOptions) => {
-      const files = runFiles(options);
       const repo = await preparedRepository();
-      await ensureCliIdentity();
+      const files = runFiles(options);
       const result = await runWithFiles(repo, files, command);
       for (const file of result.retained) process.stderr.write(`Warning: ${file} changed while the command ran and was kept.\n`);
       process.exitCode = result.code;
@@ -406,11 +406,11 @@ export function createProgram(options: {
     process.stdout.write(`Created global identity at ${identityFile()}.\nAge recipient: ${result.recipient}\nSigning key: ${result.signingKey}\nBack it up with \`gitvaulty key backup\`.\n`);
   });
   key.command("public").description("Print the public GitVaulty identity").action(async () => {
-    const identity = await ensureCliIdentity();
+    const identity = await ensureCliIdentity(interactive);
     process.stdout.write(`Age recipient: ${identity.recipient}\nSigning key: ${identity.signingKey}\n`);
   });
   key.command("backup").description("Print the private key for backup").action(async () => {
-    await ensureCliIdentity();
+    await ensureCliIdentity(interactive);
     if (!await confirm({ message: "Print your private GitVaulty key? Keep it secret.", default: false })) return;
     process.stdout.write(`${await readIdentity()}\n`);
   });
@@ -423,9 +423,14 @@ export function createProgram(options: {
 
   const user = program.command("user").description("Manage users");
   user.command("register <username>").description("Register your public recipient without granting access").action(async (username: string) => {
-    const repo = await preparedRepository();
-    const identity = await ensureCliIdentity();
     const normalizedUsername = normalizeUsername(username);
+    const prepared = await prepareRepository(normalizedUsername);
+    const { repo } = prepared;
+    if (prepared.initialized) {
+      process.stdout.write(`Registered ${normalizedUsername} as repository owner in team. Commit .gitvaulty/recipients.json for review.\n`);
+      return;
+    }
+    const identity = await currentIdentity();
     await registerUser(repo, {
       username: normalizedUsername,
       recipient: identity.recipient,
@@ -435,7 +440,6 @@ export function createProgram(options: {
   });
   user.command("add").description("Add a user to groups").action(async () => {
     const repo = await preparedRepository();
-    await ensureCliIdentity();
     const registry = await readRegistry(repo);
     const publicKey = await input({ message: "Public age recipient", validate: (value) => {
       try { parseRecipient(value); return true; }
@@ -465,7 +469,6 @@ export function createProgram(options: {
   });
   user.command("remove").description("Remove a user's file access").action(async () => {
     const repo = await preparedRepository();
-    await ensureCliIdentity();
     const registry = await readRegistry(repo);
     const mine = await currentRecipient();
     const candidates = registry.users.filter((item) => item.recipient !== mine);
@@ -479,7 +482,6 @@ export function createProgram(options: {
   const group = program.command("group").description("Manage access groups");
   group.command("create <name>").description("Create a group").action(async (name: string) => {
     const repo = await preparedRepository();
-    await ensureCliIdentity();
     const normalized = normalizeGroupName(name);
     await createGroup(repo, normalized);
     const identity = await currentIdentity();
@@ -489,26 +491,22 @@ export function createProgram(options: {
   });
   group.command("add <group> <username>").description("Add a user to a group").action(async (name: string, username: string) => {
     const repo = await preparedRepository();
-    await ensureCliIdentity();
     await addGroupMember(repo, name, username);
     process.stdout.write(`Added ${normalizeUsername(username)} to ${normalizeGroupName(name)}.\n`);
   });
   group.command("remove <group> <username>").description("Remove a user from a group and rotate affected files").action(async (name: string, username: string) => {
     const repo = await preparedRepository();
-    await ensureCliIdentity();
     await removeGroupMember(repo, name, username);
     process.stdout.write(`Removed ${normalizeUsername(username)} from ${normalizeGroupName(name)}.\n`);
   });
   const manager = group.command("manager").description("Manage group managers");
   manager.command("add <group> <username>").description("Promote a group member to manager").action(async (name: string, username: string) => {
     const repo = await preparedRepository();
-    await ensureCliIdentity();
     await addGroupManager(repo, name, username);
     process.stdout.write(`Promoted ${normalizeUsername(username)} to manager of ${normalizeGroupName(name)}.\n`);
   });
   manager.command("remove <group> <username>").description("Demote a group manager but keep membership").action(async (name: string, username: string) => {
     const repo = await preparedRepository();
-    await ensureCliIdentity();
     await removeGroupManager(repo, name, username);
     process.stdout.write(`Demoted ${normalizeUsername(username)} from manager of ${normalizeGroupName(name)}.\n`);
   });
@@ -517,7 +515,6 @@ export function createProgram(options: {
   });
   group.command("delete <name>").description("Delete an unused group").action(async (name: string) => {
     const repo = await preparedRepository();
-    await ensureCliIdentity();
     await deleteGroup(repo, name);
     process.stdout.write(`Deleted group ${normalizeGroupName(name)}.\n`);
   });

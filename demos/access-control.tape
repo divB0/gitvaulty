@@ -55,9 +55,8 @@ Enter
 Wait+Screen@30s /Your username/
 Type "admin"
 Enter
-Wait+Screen@30s /repository agent skill is missing/
-Enter
 Wait+Screen@30s /Installed agent skill/
+Wait+Screen@30s /GitVaulty is ready/
 Sleep 2s
 Type 'bash "$DEMO_SCRIPT"'
 Enter

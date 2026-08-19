@@ -21,7 +21,9 @@ When joining an existing GitVaulty repository, prefer
 [`gitvaulty user register <username>`](user-register.md). It derives the same public identity and
 adds it to the repository with no access so a group manager can review and approve a group grant.
 
-If no identity is available, GitVaulty asks whether to create one. Declining stops the command. Identity environment variables and configured key files are supported as described in [`gitvaulty key`](key.md#identity-sources).
+If no identity is available interactively, GitVaulty offers to restore an existing backup through
+masked input, create a new key, or cancel. Identity environment variables and configured key files
+are supported as described in [`gitvaulty key`](key.md#identity-sources).
 
 This command does not require an initialized Git repository and does not modify repository files.
 

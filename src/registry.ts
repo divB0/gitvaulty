@@ -1,4 +1,4 @@
-import { readFile, rename, writeFile } from "node:fs/promises";
+import { access, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Repository } from "./repository.js";
 import { ensureParent } from "./repository.js";
@@ -174,6 +174,16 @@ export async function writeRegistry(repo: Repository, registry: Registry): Promi
   Object.assign(registry, normalized);
   await atomicWrite(repo.registryFile, `${JSON.stringify(normalized, null, 2)}\n`);
   await atomicWrite(repo.sopsConfigFile, sopsConfig(normalized));
+}
+
+export async function ensureSopsConfig(repo: Repository, registry: Registry): Promise<void> {
+  try {
+    await access(repo.sopsConfigFile);
+    return;
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+  await atomicWrite(repo.sopsConfigFile, sopsConfig(normalizeRegistry(registry)));
 }
 
 export { normalizeGitVaultyGroup, normalizeGroupName } from "./group-policy.js";

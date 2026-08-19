@@ -29,6 +29,12 @@ describe("GitVaulty repository configuration", () => {
     await expect(access(repo.configFile)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
+  it("reports clearly when the current directory is not inside Git", async () => {
+    const outside = await mkdtemp(path.join(os.tmpdir(), "gitvaulty-not-git-"));
+
+    await expect(findRepository(outside)).rejects.toThrow("Current directory is not inside a Git repository.");
+  });
+
   it("creates the default YAML configuration when requested", async () => {
     await ensureRepositoryConfig(repo);
 
