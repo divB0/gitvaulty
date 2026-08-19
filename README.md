@@ -464,9 +464,15 @@ npx gitvaulty group list
 npx gitvaulty group delete production
 ```
 
-The global GitVaulty master identity normally lives at `~/.config/gitvaulty/identity.txt`. Back it
+The global GitVaulty master identity normally lives at `~/.config/gitvaulty/identity`. Back it
 up once with `gitvaulty key backup`; the same identity works across GitVaulty repositories. Native
 age/X25519 and Ed25519 keys are derived in memory for each command and are never cached on disk.
+
+GitVaulty 2.0 uses the extensionless `identity` path exclusively. Before upgrading from 1.x, rename
+`~/.config/gitvaulty/identity.txt` to `~/.config/gitvaulty/identity` if the extensionless file does
+not already exist. Moving the same master identity does not change its public keys or require
+re-encrypting existing files. See [`gitvaulty key`](docs/commands/key.md#upgrade-from-1x) for Windows
+instructions and conflict guidance.
 
 The interactive backup command can save the identity to a detected 1Password or Bitwarden CLI,
 copy it to the desktop clipboard, or print it after an additional warning. The password-manager

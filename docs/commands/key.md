@@ -26,6 +26,26 @@ GitVaulty checks identity sources in this order:
 3. `SOPS_AGE_KEY_FILE`
 4. The platform default file
 
-The normal default is `~/.config/gitvaulty/identity.txt`. On Windows, `%APPDATA%\gitvaulty\identity.txt` is used when `APPDATA` is set.
+The normal default is `~/.config/gitvaulty/identity`. On Windows, `%APPDATA%\gitvaulty\identity` is used when `APPDATA` is set.
+
+### Upgrade from 1.x
+
+GitVaulty 2.0 does not read or move the former `identity.txt` default. Before running 2.0 for the
+first time, rename a valid 1.x master identity on Unix-like systems:
+
+```sh
+mv ~/.config/gitvaulty/identity.txt ~/.config/gitvaulty/identity
+```
+
+On Windows PowerShell:
+
+```powershell
+Move-Item "$env:APPDATA\gitvaulty\identity.txt" "$env:APPDATA\gitvaulty\identity"
+```
+
+If the extensionless `identity` already exists, do not overwrite it. Confirm which identity should
+remain active and preserve the other file as a backup until access is verified. Renaming the same
+master identity does not change its age recipient or signing key, so existing `*.gitvaulty` files do
+not need to be re-encrypted.
 
 The private backup starts with `GITVAULTY-IDENTITY-`. GitVaulty derives a native age/X25519 key and an Ed25519 signing key just in time and does not cache either derived private key on disk. Repositories store only the public `age1...` recipient and `ed25519:...` verification key.

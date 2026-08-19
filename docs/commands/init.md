@@ -64,7 +64,7 @@ agent harness or sandbox.
 
 ## Identity storage
 
-Only the public age recipient and signing key are stored in the repository. The master identity is stored outside the repository, normally at `~/.config/gitvaulty/identity.txt`, with mode `0600`. Derived private keys exist only in process memory.
+Only the public age recipient and signing key are stored in the repository. The master identity is stored outside the repository, normally at `~/.config/gitvaulty/identity`, with mode `0600`. Derived private keys exist only in process memory.
 
 ## Important behavior
 
