@@ -11,6 +11,10 @@
     {
       "path_regex": "^\\.github/jetbrains-release-secrets/private-key\\.pem\\.gitvaulty$",
       "age": "age1jxrvdkk4eagskp5mp9yde6tq8xn86546mq4hugc9nw65f8rdkcpq5g3nzt,age1khpc7jsv66qdf5z58yql40ggfkazyzana5cwq2lzkcku3m0zuudqgd74n5"
+    },
+    {
+      "path_regex": "^\\.github/jetbrains-release-secrets/publish-token\\.txt\\.gitvaulty$",
+      "age": "age1jxrvdkk4eagskp5mp9yde6tq8xn86546mq4hugc9nw65f8rdkcpq5g3nzt,age1khpc7jsv66qdf5z58yql40ggfkazyzana5cwq2lzkcku3m0zuudqgd74n5"
     }
   ]
 }

@@ -99,6 +99,13 @@
         "sre"
       ],
       "users": []
+    },
+    {
+      "path": ".github/jetbrains-release-secrets/publish-token.txt.gitvaulty",
+      "groups": [
+        "sre"
+      ],
+      "users": []
     }
   ]
 }
