@@ -33,7 +33,7 @@ export function identityFile(
   homeDirectory = os.homedir(),
   platform = process.platform,
 ): string {
-  const override = environment.GITVAULTY_AGE_KEY_FILE ?? environment.SOPS_AGE_KEY_FILE;
+  const override = environment.GITVAULTY_AGE_KEY_FILE;
   if (override) return path.resolve(override);
   if (platform === "win32" && environment.APPDATA) return path.join(environment.APPDATA, "gitvaulty", "identity");
   const config = environment.XDG_CONFIG_HOME ?? path.join(homeDirectory, ".config");
