@@ -5,6 +5,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { createRuntimeManifest, runtimeTarget } from "../scripts/package-tools.mjs";
+import { injectSeaBlob } from "../scripts/sea-tools.mjs";
 
 describe("runtime packaging", () => {
   it("maps only supported native platforms", () => {
@@ -12,6 +13,21 @@ describe("runtime packaging", () => {
     expect(runtimeTarget("linux", "x64")).toBe("linux-x64");
     expect(runtimeTarget("win32", "x64")).toBe("win32-x64");
     expect(() => runtimeTarget("win32", "arm64")).toThrow("Unsupported runtime platform");
+  });
+
+  it("injects the Windows SEA blob through the postject API", async () => {
+    const calls: unknown[][] = [];
+    const inject = async (...arguments_: unknown[]) => { calls.push(arguments_); };
+    const blob = Buffer.from("sea");
+
+    await injectSeaBlob(inject, "runtime.exe", blob, "win32");
+
+    expect(calls).toEqual([[
+      "runtime.exe",
+      "NODE_SEA_BLOB",
+      blob,
+      { sentinelFuse: "NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2" },
+    ]]);
   });
 
   it("creates a deterministic exact release manifest", async () => {

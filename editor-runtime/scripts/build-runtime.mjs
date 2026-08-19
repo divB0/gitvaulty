@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";
 import { createRequire } from "node:module";
-import { chmod, copyFile, mkdir, rm, writeFile } from "node:fs/promises";
+import { chmod, copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -9,11 +9,15 @@ import archiver from "archiver";
 import { build } from "esbuild";
 
 import { runtimeFilename, runtimeTarget } from "./package-tools.mjs";
+import { injectSeaBlob } from "./sea-tools.mjs";
 
 const runtimeRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repositoryRoot = path.resolve(runtimeRoot, "..");
 const distribution = path.join(runtimeRoot, "dist");
 const bundle = path.join(distribution, "runtime.cjs");
+const runtimeRequire = createRequire(path.join(runtimeRoot, "package.json"));
+const repositoryRequire = createRequire(path.join(repositoryRoot, "package.json"));
+const { inject } = runtimeRequire("postject");
 
 /**
  * @typedef {{ cwd?: string, capture?: boolean, input?: Uint8Array }} RunOptions
@@ -75,22 +79,12 @@ if (!process.argv.includes("--bundle-only")) {
   if (process.platform !== "win32") await chmod(executable, 0o755);
   if (process.platform === "darwin") await run("codesign", ["--remove-signature", executable]);
 
-  const postject = path.join(runtimeRoot, "node_modules", ".bin", process.platform === "win32" ? "postject.cmd" : "postject");
-  const postjectArgs = [
-    executable,
-    "NODE_SEA_BLOB",
-    blob,
-    "--sentinel-fuse",
-    "NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2",
-  ];
-  if (process.platform === "darwin") postjectArgs.push("--macho-segment-name", "NODE_SEA");
-  await run(postject, postjectArgs);
+  await injectSeaBlob(inject, executable, await readFile(blob), process.platform);
   if (process.platform === "darwin") await run("codesign", ["--sign", "-", executable]);
   if (process.platform !== "win32") await chmod(executable, 0o755);
 
-  const require = createRequire(path.join(repositoryRoot, "package.json"));
   const sopsPackage = `@clef-sh/sops-${target}`;
-  const sopsRoot = path.dirname(require.resolve(`${sopsPackage}/package.json`));
+  const sopsRoot = path.dirname(repositoryRequire.resolve(`${sopsPackage}/package.json`));
   const sops = path.join(staging, sopsName);
   await copyFile(path.join(sopsRoot, "bin", sopsName), sops);
   await copyFile(path.join(sopsRoot, "LICENSE.sops"), path.join(staging, "LICENSE.sops"));
