@@ -589,6 +589,10 @@ and troubleshooting.
 
 ### JetBrains IDEs
 
+[Install GitVaulty from JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33659-gitvaulty),
+or open **Settings | Plugins | Marketplace** in a compatible IDE, search for **GitVaulty**, and
+select **Install**.
+
 GitVaulty's JetBrains plugin opens `*.gitvaulty` files as decrypted native editor documents in
 IntelliJ IDEA and other desktop JetBrains IDEs. Saving re-encrypts, verifies, and atomically replaces
 the ciphertext without creating a plaintext sibling in the repository.

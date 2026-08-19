@@ -17,8 +17,11 @@ JetBrains IDEs based on a compatible platform build.
 
 ## Install
 
-For a release ZIP, open **Settings | Plugins**, select the gear menu, choose **Install Plugin from
-Disk**, select `gitvaulty-jetbrains-<version>.zip`, and restart the IDE when prompted.
+Install [GitVaulty from JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33659-gitvaulty),
+or open **Settings | Plugins | Marketplace**, search for **GitVaulty**, and select **Install**.
+
+For an offline release ZIP, open **Settings | Plugins**, select the gear menu, choose **Install Plugin
+from Disk**, select `gitvaulty-jetbrains-<version>.zip`, and restart the IDE when prompted.
 
 To build a development package:
 
@@ -106,9 +109,8 @@ Marketplace token are committed only as `sre`-protected GitVaulty ciphertext und
 release credentials required by each signing or publishing command and removes their temporary
 plaintext files when the command exits.
 
-JetBrains requires the first plugin version to be uploaded manually so its vendor, license, source
-repository, tags, release channel, and listing details can be selected. Create and push the
-`jetbrains-v0.1.0` tag, publish the resulting GitHub Release draft so its runtime assets are public,
-then upload `gitvaulty-jetbrains-0.1.0-signed.zip` in JetBrains Marketplace. For later versions, run
-the **JetBrains plugin release** workflow manually with `publish_marketplace=true` after publishing
-the matching GitHub runtime release.
+The first plugin version was uploaded manually to establish its vendor, license, source repository,
+tags, release channel, and listing details. For later versions, create and push the matching
+`jetbrains-v<version>` tag, publish the resulting GitHub Release draft so its runtime assets are
+public, then run the **JetBrains plugin release** workflow manually with
+`publish_marketplace=true`.
