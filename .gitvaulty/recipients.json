@@ -3,7 +3,7 @@
   "defaultGroup": "team",
   "users": [
     {
-      "username": "andrea",
+      "username": "divb0",
       "recipient": "age1khpc7jsv66qdf5z58yql40ggfkazyzana5cwq2lzkcku3m0zuudqgd74n5",
       "signingKey": "ed25519:hO56czR-G5k3FA9w9ayaH8awGZ5EU2vKIqJMME79-f4"
     },
@@ -21,27 +21,27 @@
           "revision": 1,
           "previous": null,
           "managers": [
-            "andrea"
+            "divb0"
           ],
           "members": [
             {
-              "username": "andrea",
+              "username": "divb0",
               "recipient": "age1khpc7jsv66qdf5z58yql40ggfkazyzana5cwq2lzkcku3m0zuudqgd74n5",
               "signingKey": "ed25519:hO56czR-G5k3FA9w9ayaH8awGZ5EU2vKIqJMME79-f4"
             }
           ],
-          "signedBy": "andrea",
-          "signature": "ed25519:EJdvyDc3lk4HXfUKj_vGnonGbqujKztsdiSoNzpU4LdqYddDw8PXNYUuoy0TNnXvsh3joi8Pi8NPNVZus2mJBg"
+          "signedBy": "divb0",
+          "signature": "ed25519:Czy9TEkN_sfiVag7xE3wm0YsfioPUxMvVw0uvcx-SIvPBiOJtGW2bFhbHqCBUEJAUMhGy3q_z98dPigzDiDgDA"
         },
         {
           "revision": 2,
-          "previous": "sha256:a229affe8fae794e5a61e0cc0d0b844f92b3ec2a0c5caa8d5c85d6e876f9e112",
+          "previous": "sha256:ae29f263b7f436d9ebd275b38e935c1e1135851acc1ec0b0ccedf66850b36870",
           "managers": [
-            "andrea"
+            "divb0"
           ],
           "members": [
             {
-              "username": "andrea",
+              "username": "divb0",
               "recipient": "age1khpc7jsv66qdf5z58yql40ggfkazyzana5cwq2lzkcku3m0zuudqgd74n5",
               "signingKey": "ed25519:hO56czR-G5k3FA9w9ayaH8awGZ5EU2vKIqJMME79-f4"
             },
@@ -51,8 +51,8 @@
               "signingKey": "ed25519:Bc4IZBkFT5qu8RmqIrQpN0Zx3IP2HEUB2EM0KgC4wBc"
             }
           ],
-          "signedBy": "andrea",
-          "signature": "ed25519:781WrPGNeuw6pyzgAVHHFlSgdrw3wqG3rHqfMOM2UoKmAq0T1A97iEkTEmKzzj7Ps3cZc_zkXnnMyKWjXShWBg"
+          "signedBy": "divb0",
+          "signature": "ed25519:As4wnUDt4q8q_T1QRur4RC7kfxOSUz1fbf4XYFvl4UhRw9q4Q5joce2ZUI_1v3aykpDRsR-pMPYkpMC9vJDkBQ"
         }
       ]
     },
@@ -63,17 +63,17 @@
           "revision": 1,
           "previous": null,
           "managers": [
-            "andrea"
+            "divb0"
           ],
           "members": [
             {
-              "username": "andrea",
+              "username": "divb0",
               "recipient": "age1khpc7jsv66qdf5z58yql40ggfkazyzana5cwq2lzkcku3m0zuudqgd74n5",
               "signingKey": "ed25519:hO56czR-G5k3FA9w9ayaH8awGZ5EU2vKIqJMME79-f4"
             }
           ],
-          "signedBy": "andrea",
-          "signature": "ed25519:75pM3Ov4HBiY2PZp44zZzh41Jx7E9CSXG64Zpc55AGMqaw53KSsFzLo7O1BvJFDZD9cnxdwQRLX4n4HGZKyKCQ"
+          "signedBy": "divb0",
+          "signature": "ed25519:II-gnGc_YsHGu5vBT3mDDwTmRIypANofV_FQMglY7hR-Np9af4JIp9QW7Kp8SuL8q2AwrJ5Uf2E4g1gr4pX9Dg"
         }
       ]
     }
