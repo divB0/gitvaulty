@@ -72,18 +72,22 @@ Keep these scenes in this order so the animation tells one continuous access-con
    skill, and then continuing the requested command to create `dev`.
 2. As Admin, create `sre`. Show that the creator is automatically manager and member of both `dev`
    and `sre`, then commit and push the repository bootstrap files and signed group configuration.
-3. As Alice, create and push `onboard/alice` containing only `gitvaulty user register alice` and its
-   public registration commit.
-4. As Admin, pull `main`, merge Alice's reviewed registration, grant `dev`, then commit and push the
-   access change.
-5. Repeat the registration, review, merge, grant, commit, and push flow for Sam and `sre`.
-6. As Admin, create local `.env` for `dev` and `sre`, create `.env.production` for `sre`, and create
+3. As Admin, create local `.env` for `dev` and `sre`, create `.env.production` for `sre`, and create
    `terraform/prod.auto.tfvars` for `sre`. Commit and push the encrypted files and policy metadata.
+4. As Alice, create and push `onboard/alice` containing only `gitvaulty user register alice` and its
+   public registration commit.
+5. As Admin, pull `main`, merge Alice's reviewed registration, grant `dev`, then commit and push the
+   access change. Switch to Alice and show that the single group grant unlocks every existing `dev`
+   file, then clean the materialized plaintext.
+6. Repeat the registration, review, merge, grant, commit, and push flow for Sam and `sre`. Switch to
+   Sam and show that the group grant unlocks every existing `sre` file: local `.env`, production
+   `.env`, and the Terraform secrets. Clean the materialized plaintext.
 7. As Jules, create and push `onboard/jules` containing the public self-registration.
 8. As Admin, merge Jules's reviewed registration. As Alice, show that an ordinary `dev` member cannot
    add Jules. Return to Admin, sign the `dev` membership revision, then commit and push it.
-9. As Jules, materialize accessible files and show that only local `.env` appears. Attempt to decrypt
-   `.env.production` and `terraform/prod.auto.tfvars`, and show both authorization failures.
+9. As Jules, show that the `dev` grant unlocks every existing `dev` file, while only local `.env`
+   appears. Attempt to decrypt `.env.production` and `terraform/prod.auto.tfvars`, and show both
+   authorization failures.
 10. As Sam, use both SRE-only files in a Terraform command through `gitvaulty run`. Show that Terraform
     accepts them and that no plaintext secret file remains afterward.
 
@@ -118,10 +122,13 @@ After generation, play the GIF from beginning to end and confirm:
 - `dev` and `sre` managers and membership are visible;
 - only Admin, Alice, Sam, and Jules appear, and every screen has the correct persona header;
 - onboarding registrations are committed and pushed before Admin merges and grants access;
+- immediately after Alice and Sam receive group access, their materialization status lists every
+  existing file assigned to that group, followed by plaintext cleanup;
 - Alice's rejected membership change is readable before Admin's signed grant;
 - encrypted secret and access-policy changes are committed and pushed;
 - local, production, and Terraform access rules match the scenario contract;
 - Jules's two authorization failures are readable;
+- Jules's `dev` grant visibly unlocks every `dev` file without unlocking either SRE-only file;
 - Sam's Terraform success and final missing-file status are readable;
 - no secret value, master identity, derived private key, or personal workstation path is visible; the expected disposable
   `/tmp/gitvaulty-readme-remote.git` push target is allowed;

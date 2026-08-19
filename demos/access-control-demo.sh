@@ -13,7 +13,7 @@ finish() {
   local status=$?
   set +e
   if (( status == 0 )); then
-    printf '\n\033[1;32m✓ Demo complete: managers sign access changes; every user keeps one private identity.\033[0m\n'
+    printf '\n\033[1;32m✓ Demo complete: one signed group grant unlocks every secret assigned to that group.\033[0m\n'
   else
     printf '\n\033[1;31m✗ Demo failed with exit status %d.\033[0m\n' "$status"
   fi
@@ -127,6 +127,12 @@ review_and_grant() {
   run_git 1 add -A
   run_git_commit 3 "chore: grant $display_name $group access"
   run_git 3 push
+
+  as_user "$username"
+  section "$display_name now inherits every $group secret"
+  run_gitvaulty 4 materialize
+  run_gitvaulty 4 status
+  run_gitvaulty 2 clean
 }
 
 as_user admin
@@ -136,14 +142,6 @@ run_gitvaulty 4 group list
 run_git 1 add -A
 run_git_commit 3 "chore: bootstrap GitVaulty access"
 run_git 3 push -u origin main
-
-as_user alice
-publish_registration alice Alice
-review_and_grant alice Alice dev
-
-as_user sam
-publish_registration sam Sam
-review_and_grant sam Sam sre
 
 as_user admin
 section "Local .env: dev + sre only"
@@ -163,6 +161,14 @@ run_git 4 status --short
 run_git 1 add -A
 run_git_commit 3 "chore: add environment secrets"
 run_git 3 push
+
+as_user alice
+publish_registration alice Alice
+review_and_grant alice Alice dev
+
+as_user sam
+publish_registration sam Sam
+review_and_grant sam Sam sre
 
 as_user jules
 publish_registration jules Jules
@@ -188,7 +194,7 @@ run_git_commit 3 "chore: grant Jules dev access"
 run_git 3 push
 
 as_user jules
-section "Materialize only the local .env"
+section "Jules inherits every dev secret, but no SRE secrets"
 run_gitvaulty 4 materialize
 run_gitvaulty 4 status
 prompt "gitvaulty cat .env.production >/dev/null"
