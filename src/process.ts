@@ -2,7 +2,14 @@ import { spawn } from "node:child_process";
 
 export interface ProcessResult { stdout: string; stderr: string; code: number }
 
-export function execute(command: string, args: string[], options: { cwd?: string; env?: NodeJS.ProcessEnv; input?: string; inherit?: boolean } = {}): Promise<ProcessResult> {
+export interface ProcessOptions {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+  input?: string;
+  inherit?: boolean;
+}
+
+export function execute(command: string, args: string[], options: ProcessOptions = {}): Promise<ProcessResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: options.cwd,
@@ -16,6 +23,24 @@ export function execute(command: string, args: string[], options: { cwd?: string
     child.on("error", reject);
     child.on("close", (code) => resolve({ stdout, stderr, code: code ?? 1 }));
     if (!options.inherit) child.stdin?.end(options.input);
+  });
+}
+
+export function executeInteractiveCapture(
+  command: string,
+  args: string[],
+  options: Pick<ProcessOptions, "cwd" | "env"> = {},
+): Promise<ProcessResult> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: options.cwd,
+      env: options.env,
+      stdio: ["inherit", "pipe", "inherit"],
+    });
+    let stdout = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk: string) => { stdout += chunk; });
+    child.on("error", reject);
+    child.on("close", (code) => resolve({ stdout, stderr: "", code: code ?? 1 }));
   });
 }
 

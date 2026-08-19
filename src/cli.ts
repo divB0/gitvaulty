@@ -61,6 +61,7 @@ import {
 } from "./agent-skill.js";
 import { readRepositoryConfig } from "./config.js";
 import { formatSecretDiff } from "./diff.js";
+import { backupKey, type KeyBackupOptions } from "./key-backup.js";
 
 const packageManifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version?: unknown };
 if (typeof packageManifest.version !== "string") throw new Error("package.json must contain a version string.");
@@ -242,10 +243,12 @@ export async function importWithTrackedPrompt(
 export function createProgram(options: {
   agentSkillPreflight?: (repo: Repository) => Promise<void>;
   interactive?: boolean;
+  keyBackup?: (options: KeyBackupOptions) => Promise<void>;
 } = {}): Command {
   const program = new Command().name("gitvaulty").description("Git-backed secrets for humans.").version(packageVersion).enablePositionalOptions();
   const agentSkillPreflight = options.agentSkillPreflight ?? ensureRepositoryAgentSkill;
   const interactive = options.interactive ?? Boolean(process.stdin.isTTY && process.stderr.isTTY);
+  const keyBackup = options.keyBackup ?? backupKey;
   const prepareRepository = async (initialUsername?: string): Promise<{ repo: Repository; initialized: boolean }> => {
     const repo = await findRepository();
     const identity = await ensureCliIdentity(interactive);
@@ -409,11 +412,22 @@ export function createProgram(options: {
     const identity = await ensureCliIdentity(interactive);
     process.stdout.write(`Age recipient: ${identity.recipient}\nSigning key: ${identity.signingKey}\n`);
   });
-  key.command("backup").description("Print the private key for backup").action(async () => {
-    await ensureCliIdentity(interactive);
-    if (!await confirm({ message: "Print your private GitVaulty key? Keep it secret.", default: false })) return;
-    process.stdout.write(`${await readIdentity()}\n`);
-  });
+  key.command("backup")
+    .description("Back up the private GitVaulty key")
+    .option("--clipboard", "copy the private key to the system clipboard")
+    .option("--print", "print the private key to standard output")
+    .action(async (commandOptions: { clipboard?: boolean; print?: boolean }) => {
+      const backupOptions = {
+        clipboard: Boolean(commandOptions.clipboard),
+        interactive,
+        print: Boolean(commandOptions.print),
+      };
+      if (backupOptions.clipboard && backupOptions.print) {
+        throw new GitVaultyError("Choose either --clipboard or --print, not both.");
+      }
+      await ensureCliIdentity(interactive);
+      await keyBackup(backupOptions);
+    });
   key.command("restore").description("Restore a private key backup").action(async () => {
     const replace = await hasIdentity();
     if (replace && !await confirm({ message: "Replace the existing global GitVaulty key?", default: false })) return;

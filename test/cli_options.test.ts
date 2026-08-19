@@ -260,6 +260,35 @@ describe("GitVaulty CLI option callbacks", () => {
     expect(repositoryMocks.findRepository).not.toHaveBeenCalled();
   });
 
+  it("passes key backup destinations to the backup service", async () => {
+    const keyBackup = vi.fn(async () => undefined);
+
+    await createProgram({ interactive: false, keyBackup }).parseAsync([
+      "node", "gitvaulty", "key", "backup", "--clipboard",
+    ]);
+    await createProgram({ interactive: false, keyBackup }).parseAsync([
+      "node", "gitvaulty", "key", "backup", "--print",
+    ]);
+    await createProgram({ interactive: true, keyBackup }).parseAsync([
+      "node", "gitvaulty", "key", "backup",
+    ]);
+
+    expect(keyBackup).toHaveBeenNthCalledWith(1, { clipboard: true, interactive: false, print: false });
+    expect(keyBackup).toHaveBeenNthCalledWith(2, { clipboard: false, interactive: false, print: true });
+    expect(keyBackup).toHaveBeenNthCalledWith(3, { clipboard: false, interactive: true, print: false });
+  });
+
+  it("rejects conflicting key backup flags before reading the identity", async () => {
+    const keyBackup = vi.fn(async () => undefined);
+
+    await expect(createProgram({ interactive: false, keyBackup }).parseAsync([
+      "node", "gitvaulty", "key", "backup", "--clipboard", "--print",
+    ])).rejects.toThrow("Choose either --clipboard or --print");
+
+    expect(keyMocks.readIdentity).not.toHaveBeenCalled();
+    expect(keyBackup).not.toHaveBeenCalled();
+  });
+
   it("restores a missing key with masked input before implicit initialization", async () => {
     operationMocks.isInitialized.mockResolvedValueOnce(false);
     keyMocks.readIdentity.mockRejectedValueOnce(new Error("No GitVaulty key found at /identity.txt."));

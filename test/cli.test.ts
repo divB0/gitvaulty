@@ -85,6 +85,8 @@ describe("GitVaulty CLI", () => {
     expect(command("diff")?.options.map((option) => option.long)).toEqual(["--exit-code"]);
     expect(command("run")?.options.map((option) => option.long)).toEqual(["--file", "--all"]);
     expect(command("key")?.commands.map((item) => item.name())).toEqual(["create", "public", "backup", "restore"]);
+    expect(command("key")?.commands.find((item) => item.name() === "backup")?.options.map((option) => option.long))
+      .toEqual(["--clipboard", "--print"]);
     expect(command("user")?.commands.map((item) => item.name())).toEqual(["register", "add", "list", "remove"]);
     expect(command("group")?.commands.map((item) => item.name())).toEqual(["create", "add", "remove", "manager", "list", "delete"]);
     expect(command("group")?.commands.find((item) => item.name() === "manager")?.commands.map((item) => item.name())).toEqual(["add", "remove"]);

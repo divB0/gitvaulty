@@ -36,9 +36,10 @@ interactive terminal fails and tells the user to choose one of these flags.
 
 ## Security and data flow
 
-GitVaulty does not read the private identity until the user has selected a usable destination. It
-never places the identity in command arguments, the shell, a temporary file, status output, or
-provider output. Provider processes are launched directly.
+GitVaulty validates that a private identity exists before opening the destination flow, but it does
+not pass that identity to a destination until the user has selected one. It never places the
+identity in command arguments, the shell, a temporary file, status output, or provider output.
+Provider processes are launched directly.
 
 For 1Password, GitVaulty obtains the Password item template, fills its concealed password field in
 memory, and supplies JSON to `op item create -` through stdin. For Bitwarden, GitVaulty builds a
