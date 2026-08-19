@@ -57,7 +57,7 @@
 **Steps:**
 
 1. Document the interactive menus, detected/unavailable provider behavior, authentication expectations, flags, and clipboard warning.
-2. Change the package version from `1.0.0` to `2.0.0` and keep the lockfile synchronized.
+2. Change the package version from `1.0.0` to `1.1.0` and keep the lockfile synchronized.
 3. Record that `docs/demo/instructions.md` was compared and no captured scenario changed.
 4. Run documentation/help assertions and package smoke tests.
 

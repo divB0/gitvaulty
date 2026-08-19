@@ -85,7 +85,7 @@ repository.
 
 ## Release note
 
-GitVaulty 2.0.0 changes the flagless command from confirmed terminal printing to the interactive
+GitVaulty 1.1.0 changes the flagless command from confirmed terminal printing to the interactive
 destination picker. Automation that needs the raw value must use `--print`; automation targeting a
 desktop clipboard can use `--clipboard`.
 

@@ -4,8 +4,8 @@
 
 Make `gitvaulty key backup` guide people toward safer destinations without hiding unavailable
 integrations. The bare command becomes interactive, while explicit `--clipboard` and `--print`
-flags remain usable in non-interactive environments. This intentionally replaces the 1.x behavior
-that printed the identity after a confirmation, so the release is GitVaulty 2.0.0.
+flags remain usable in non-interactive environments. This intentionally replaces the 1.0 behavior
+that printed the identity after a confirmation, and the release is GitVaulty 1.1.0.
 
 ## User experience
 
@@ -69,7 +69,7 @@ Bitwarden session cleanup, clipboard behavior, printing, cancellation, and secre
 
 ## Release and demo review
 
-The package version changes from 1.0.0 to 2.0.0 under `HOW_TO_VERSION.md`. The README and key command
+At the user's direction, the package version changes from 1.0.0 to 1.1.0. The README and key command
 reference will describe the new destinations, flags, provider requirements, and security boundary.
 
 The minor/major release scenario contract in `docs/demo/instructions.md` was reviewed. No captured
