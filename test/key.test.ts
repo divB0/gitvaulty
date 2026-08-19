@@ -20,9 +20,9 @@ describe("global GitVaulty identity", () => {
   it("resolves overrides and platform configuration directories", () => {
     expect(identityFile({ GITVAULTY_AGE_KEY_FILE: "/secure/gitvaulty.txt" }, "/home/alice", "linux")).toBe("/secure/gitvaulty.txt");
     expect(identityFile({ SOPS_AGE_KEY_FILE: "/secure/sops.txt" }, "/home/alice", "linux")).toBe("/secure/sops.txt");
-    expect(identityFile({ XDG_CONFIG_HOME: "/config" }, "/home/alice", "linux")).toBe("/config/gitvaulty/identity.txt");
-    expect(identityFile({ APPDATA: "C:\\Users\\alice\\AppData" }, "C:\\Users\\alice", "win32")).toBe(path.join("C:\\Users\\alice\\AppData", "gitvaulty", "identity.txt"));
-    expect(identityFile({}, "/home/alice", "linux")).toBe("/home/alice/.config/gitvaulty/identity.txt");
+    expect(identityFile({ XDG_CONFIG_HOME: "/config" }, "/home/alice", "linux")).toBe("/config/gitvaulty/identity");
+    expect(identityFile({ APPDATA: "C:\\Users\\alice\\AppData" }, "C:\\Users\\alice", "win32")).toBe(path.join("C:\\Users\\alice\\AppData", "gitvaulty", "identity"));
+    expect(identityFile({}, "/home/alice", "linux")).toBe("/home/alice/.config/gitvaulty/identity");
   });
 
   it("creates one secure master identity and derives both public keys", async () => {
