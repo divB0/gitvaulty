@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const operationMocks = vi.hoisted(() => ({
   cleanSecretFiles: vi.fn(async () => ({ removed: [], retained: [] })),
+  createGroup: vi.fn(async () => undefined),
   createSecretFile: vi.fn(async (_repository, file: string) => ({ file })),
   diffSecretFiles: vi.fn(async (): Promise<Array<{
     file: string;
@@ -10,9 +11,10 @@ const operationMocks = vi.hoisted(() => ({
     newContent: Buffer;
   }>> => []),
   editSecretFile: vi.fn(async () => false),
+  ensureRepositoryMetadata: vi.fn(async () => undefined),
   importSecretFile: vi.fn(async (_repository, file: string) => ({ file, bytes: 12 })),
   initialize: vi.fn(async () => ({ agentSkill: "installed" as const })),
-  isInitialized: vi.fn(async () => false),
+  isInitialized: vi.fn(async () => true),
   materializeSecretFiles: vi.fn(async () => []),
   readSecretFile: vi.fn(async (_repository, file: string) => ({
     file,
@@ -28,11 +30,11 @@ const operationMocks = vi.hoisted(() => ({
 }));
 
 const keyMocks = vi.hoisted(() => ({
-  createIdentity: vi.fn(),
+  createIdentity: vi.fn(async () => ({ identity: "AGE-SECRET-KEY-CREATED", recipient: "age1created" })),
   currentRecipient: vi.fn(async () => "age1owner"),
   identityFile: vi.fn(() => "/identity.txt"),
   readIdentity: vi.fn(async () => "AGE-SECRET-KEY-OWNER"),
-  restoreIdentity: vi.fn(),
+  restoreIdentity: vi.fn(async () => ({ identity: "AGE-SECRET-KEY-RESTORED", recipient: "age1restored" })),
 }));
 
 const promptMocks = vi.hoisted(() => ({
@@ -51,6 +53,10 @@ const repository = vi.hoisted(() => ({
   sopsConfigFile: "/repository/.sops.yaml",
 }));
 
+const repositoryMocks = vi.hoisted(() => ({
+  findRepository: vi.fn(async () => repository),
+}));
+
 const registry = vi.hoisted(() => ({
   defaultGroup: "team",
   files: [{ path: "secret.txt.gitvaulty", groups: ["team"], users: [] }],
@@ -64,9 +70,14 @@ const registry = vi.hoisted(() => ({
 
 vi.mock("@inquirer/prompts", () => promptMocks);
 
+vi.mock("../src/agent-skill.js", () => ({
+  agentSkillStatus: vi.fn(async () => "current"),
+  installAgentSkill: vi.fn(async () => "current"),
+}));
+
 vi.mock("../src/key.js", () => keyMocks);
 
-vi.mock("../src/repository.js", () => ({ findRepository: vi.fn(async () => repository) }));
+vi.mock("../src/repository.js", () => repositoryMocks);
 
 vi.mock("../src/registry.js", () => ({
   normalizeGroupName: vi.fn((value: string) => value),
@@ -95,6 +106,8 @@ async function withStdoutTTY<T>(isTTY: boolean, action: () => Promise<T>): Promi
 describe("GitVaulty CLI option callbacks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    operationMocks.isInitialized.mockResolvedValue(true);
+    keyMocks.readIdentity.mockResolvedValue("AGE-SECRET-KEY-OWNER");
     vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     vi.spyOn(process.stderr, "write").mockImplementation(() => true);
   });
@@ -144,17 +157,19 @@ describe("GitVaulty CLI option callbacks", () => {
     });
   });
 
-  it("rejects an initialized repository before prompting for identity or username", async () => {
-    operationMocks.isInitialized.mockResolvedValueOnce(true);
+  it("makes explicit initialization idempotent through the shared bootstrap", async () => {
+    const agentSkillPreflight = vi.fn(async () => undefined);
 
-    await expect(createProgram().parseAsync([
+    await createProgram({ agentSkillPreflight, interactive: true }).parseAsync([
       "node", "gitvaulty", "init",
-    ])).rejects.toThrow("GitVaulty is already initialized.");
+    ]);
 
-    expect(keyMocks.readIdentity).not.toHaveBeenCalled();
-    expect(keyMocks.currentRecipient).not.toHaveBeenCalled();
+    expect(keyMocks.readIdentity).toHaveBeenCalledOnce();
+    expect(operationMocks.ensureRepositoryMetadata).toHaveBeenCalledWith(repository);
     expect(promptMocks.input).not.toHaveBeenCalled();
     expect(operationMocks.initialize).not.toHaveBeenCalled();
+    expect(agentSkillPreflight).toHaveBeenCalledWith(repository);
+    expect(process.stdout.write).toHaveBeenCalledWith("GitVaulty is ready.\n");
   });
 
   it("runs agent skill preflight for initialized repository commands", async () => {
@@ -168,15 +183,24 @@ describe("GitVaulty CLI option callbacks", () => {
     expect(agentSkillPreflight).toHaveBeenCalledWith(repository);
   });
 
-  it("skips agent skill preflight for uninitialized repositories", async () => {
+  it("implicitly initializes before continuing the requested command", async () => {
     operationMocks.isInitialized.mockResolvedValueOnce(false);
+    promptMocks.input.mockResolvedValueOnce("Owner");
     const agentSkillPreflight = vi.fn(async () => undefined);
 
-    await createProgram({ agentSkillPreflight }).parseAsync([
-      "node", "gitvaulty", "user", "list",
+    await createProgram({ agentSkillPreflight, interactive: true }).parseAsync([
+      "node", "gitvaulty", "group", "create", "production",
     ]);
 
-    expect(agentSkillPreflight).not.toHaveBeenCalled();
+    expect(operationMocks.initialize).toHaveBeenCalledWith(repository, {
+      username: "owner",
+      recipient: "age1owner",
+    });
+    expect(agentSkillPreflight).toHaveBeenCalledWith(repository);
+    expect(operationMocks.createGroup).toHaveBeenCalledWith(repository, "production");
+    expect(operationMocks.initialize.mock.invocationCallOrder[0])
+      .toBeLessThan(operationMocks.createGroup.mock.invocationCallOrder[0]!);
+    expect(process.stderr.write).toHaveBeenCalledWith("GitVaulty initialized.\n");
   });
 
   it("does not inspect repositories for global key commands", async () => {
@@ -187,22 +211,76 @@ describe("GitVaulty CLI option callbacks", () => {
     ]);
 
     expect(agentSkillPreflight).not.toHaveBeenCalled();
+    expect(repositoryMocks.findRepository).not.toHaveBeenCalled();
   });
 
-  it("runs agent skill preflight after successful initialization", async () => {
+  it("restores a missing key with masked input before implicit initialization", async () => {
     operationMocks.isInitialized.mockResolvedValueOnce(false);
+    keyMocks.readIdentity.mockRejectedValueOnce(new Error("No GitVaulty key found at /identity.txt."));
+    promptMocks.select.mockResolvedValueOnce("restore");
+    promptMocks.password.mockResolvedValueOnce("AGE-SECRET-KEY-BACKUP");
     promptMocks.input.mockResolvedValueOnce("owner");
     const agentSkillPreflight = vi.fn(async () => undefined);
 
-    await createProgram({ agentSkillPreflight }).parseAsync([
-      "node", "gitvaulty", "init",
+    await createProgram({ agentSkillPreflight, interactive: true }).parseAsync([
+      "node", "gitvaulty", "group", "create", "production",
     ]);
 
+    expect(promptMocks.select).toHaveBeenCalledWith(expect.objectContaining({
+      choices: expect.arrayContaining([
+        expect.objectContaining({ value: "restore" }),
+        expect.objectContaining({ value: "create" }),
+        expect.objectContaining({ value: "cancel" }),
+      ]),
+    }), expect.objectContaining({ output: process.stderr }));
+    expect(promptMocks.password).toHaveBeenCalledWith(expect.objectContaining({ mask: "*" }), expect.objectContaining({ output: process.stderr }));
+    expect(keyMocks.restoreIdentity).toHaveBeenCalledWith("AGE-SECRET-KEY-BACKUP", "/identity.txt");
     expect(operationMocks.initialize).toHaveBeenCalledWith(repository, {
       username: "owner",
-      recipient: "age1owner",
+      recipient: "age1restored",
     });
     expect(agentSkillPreflight).toHaveBeenCalledWith(repository);
+    expect(process.stdout.write).not.toHaveBeenCalledWith(expect.stringContaining("AGE-SECRET-KEY"));
+  });
+
+  it("creates a missing key when selected", async () => {
+    operationMocks.isInitialized.mockResolvedValueOnce(false);
+    keyMocks.readIdentity.mockRejectedValueOnce(new Error("No GitVaulty key found at /identity.txt."));
+    promptMocks.select.mockResolvedValueOnce("create");
+    promptMocks.input.mockResolvedValueOnce("owner");
+
+    await createProgram({ interactive: true }).parseAsync([
+      "node", "gitvaulty", "group", "create", "production",
+    ]);
+
+    expect(keyMocks.createIdentity).toHaveBeenCalledOnce();
+    expect(operationMocks.initialize).toHaveBeenCalledWith(repository, {
+      username: "owner",
+      recipient: "age1created",
+    });
+    expect(process.stderr.write).toHaveBeenCalledWith(expect.stringContaining("Back it up with `gitvaulty key backup`"));
+  });
+
+  it("cancels missing-key bootstrap without repository changes", async () => {
+    keyMocks.readIdentity.mockRejectedValueOnce(new Error("No GitVaulty key found at /identity.txt."));
+    promptMocks.select.mockResolvedValueOnce("cancel");
+
+    await expect(createProgram({ interactive: true }).parseAsync([
+      "node", "gitvaulty", "group", "list",
+    ])).rejects.toThrow("A GitVaulty key is required");
+
+    expect(operationMocks.initialize).not.toHaveBeenCalled();
+    expect(operationMocks.ensureRepositoryMetadata).not.toHaveBeenCalled();
+  });
+
+  it("fails non-interactively when a required key is missing", async () => {
+    keyMocks.readIdentity.mockRejectedValueOnce(new Error("No GitVaulty key found at /identity.txt."));
+
+    await expect(createProgram({ interactive: false }).parseAsync([
+      "node", "gitvaulty", "group", "list",
+    ])).rejects.toThrow("Run `gitvaulty key restore` or `gitvaulty key create`");
+
+    expect(promptMocks.select).not.toHaveBeenCalled();
   });
 
   it("passes repeated file options to materialize, clean, and status", async () => {

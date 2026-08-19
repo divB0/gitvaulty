@@ -13,7 +13,7 @@ export interface Repository {
 
 async function gitPath(cwd: string, ...args: string[]): Promise<string> {
   try { return (await executeChecked("git", args, { cwd })).stdout.trim(); }
-  catch { throw new GitVaultyError("Run this command inside a Git repository."); }
+  catch { throw new GitVaultyError("Current directory is not inside a Git repository."); }
 }
 
 export function normalizeGitPath(value: string, platformPath: Pick<typeof path, "resolve"> = path): string {

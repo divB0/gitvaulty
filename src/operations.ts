@@ -18,6 +18,7 @@ import {
   type GitVaultyUser,
   type SecretFileGrant,
   type Registry,
+  ensureSopsConfig,
   filesForUser,
   normalizeFileGrant,
   normalizeGroupName,
@@ -157,6 +158,13 @@ export async function initialize(
     groups: [{ name: "team", members: [owner.username] }],
     files: [],
   });
+}
+
+export async function ensureRepositoryMetadata(repo: Repository): Promise<void> {
+  await ensureInitialized(repo);
+  const registry = await readRegistry(repo);
+  await ensureRepositoryConfig(repo);
+  await ensureSopsConfig(repo, registry);
 }
 
 export interface FileAccess { groups?: string[]; users?: string[] }

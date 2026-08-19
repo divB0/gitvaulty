@@ -1,4 +1,4 @@
-import { access, mkdtemp, readFile, stat, symlink, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,6 +11,7 @@ import {
   createSecretFile,
   editSecretFile,
   encryptedFileFor,
+  ensureRepositoryMetadata,
   importSecretFile,
   initialize,
   plaintextFileFor,
@@ -53,6 +54,19 @@ describe("opaque native secret files", () => {
       "  mode: managed",
       "",
     ].join("\n"));
+  });
+
+  it("repairs missing generated metadata without changing the registry", async () => {
+    const registryBefore = await readFile(repo.registryFile, "utf8");
+    const sopsBefore = await readFile(repo.sopsConfigFile, "utf8");
+    await rm(repo.configFile);
+    await rm(repo.sopsConfigFile);
+
+    await ensureRepositoryMetadata(repo);
+
+    expect(await readFile(repo.registryFile, "utf8")).toBe(registryBefore);
+    expect(await readFile(repo.sopsConfigFile, "utf8")).toBe(sopsBefore);
+    expect(await readFile(repo.configFile, "utf8")).toContain("mode: managed");
   });
 
   it("creates only new empty encrypted files", async () => {
