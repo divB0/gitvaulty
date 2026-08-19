@@ -1,6 +1,6 @@
 # `gitvaulty key create`
 
-Generate and store a new global native age identity.
+Generate and store one global GitVaulty master identity.
 
 ## Usage
 
@@ -8,7 +8,7 @@ Generate and store a new global native age identity.
 npx gitvaulty key create
 ```
 
-GitVaulty generates an age private identity, derives its public recipient, and writes the private identity to the configured identity file with mode `0600`. The output prints the file location, public `age1...` recipient, and a reminder to back it up.
+GitVaulty generates a random master secret and writes it to the configured identity file with mode `0600`. It derives a native age/X25519 encryption identity and Ed25519 signing identity in memory. The output prints both public keys and a reminder to back up the single master identity.
 
 The command uses `GITVAULTY_AGE_KEY_FILE` or `SOPS_AGE_KEY_FILE` when configured; otherwise it uses the platform default described in [`gitvaulty key`](key.md#identity-sources).
 
@@ -16,9 +16,9 @@ The command uses `GITVAULTY_AGE_KEY_FILE` or `SOPS_AGE_KEY_FILE` when configured
 
 `key create` uses exclusive file creation and refuses to overwrite an existing identity file. Use [`gitvaulty key restore`](key-restore.md) if you intentionally need to replace the stored identity.
 
-This command does not initialize a repository or add the public recipient to an existing repository.
+This command does not initialize a repository or add either public key to an existing repository.
 Use [`gitvaulty init`](init.md) for a new repository, or run
-[`gitvaulty user register <username>`](user-register.md) to commit the public recipient to an
+[`gitvaulty user register <username>`](user-register.md) to commit the public identity to an
 existing repository without granting access.
 
 ## Related commands

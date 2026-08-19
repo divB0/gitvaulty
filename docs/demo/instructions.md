@@ -41,13 +41,14 @@ its temporary repository, identities, editor, and environment before starting th
 
 The recording always uses exactly four people:
 
-- `admin` — Admin, the repository owner and authorized access approver;
+- `admin` — Admin, the repository owner and manager of `dev` and `sre`;
 - `alice` — Alice, the initial developer;
 - `sam` — Sam, the SRE;
 - `jules` — Jules, the second developer who joins later.
 
-GitVaulty does not have a built-in admin role. The username `admin` describes this scenario's
-repository owner, who belongs to both access groups so they can update the affected encrypted files.
+GitVaulty does not have a repository-wide admin role. The username `admin` describes this scenario's
+repository owner. Creating `dev` and `sre` makes Admin each group's first manager and member, so Admin
+can sign membership revisions and re-encrypt the affected files.
 
 Every cleared screen starts with the active persona, for example `# User: Jules (dev)`. If the actor
 changes, start a new screen before showing their commands.
@@ -67,7 +68,8 @@ Do not add a fake hosted-service UI or a fifth reviewer persona.
 Keep these scenes in this order so the animation tells one continuous access-control story:
 
 1. As Admin, initialize GitVaulty, commit the repository configuration, and push `main` to `origin`.
-2. As Admin, create `dev` and `sre`, add `admin` to both, then commit and push the group configuration.
+2. As Admin, create `dev` and `sre`. Show that the creator is automatically manager and member, then
+   commit and push the signed group configuration.
 3. As Alice, create and push `onboard/alice` containing only `gitvaulty user register alice` and its
    public registration commit.
 4. As Admin, pull `main`, merge Alice's reviewed registration, grant `dev`, then commit and push the
@@ -76,7 +78,8 @@ Keep these scenes in this order so the animation tells one continuous access-con
 6. As Admin, create local `.env` for `dev` and `sre`, create `.env.production` for `sre`, and create
    `terraform/prod.auto.tfvars` for `sre`. Commit and push the encrypted files and policy metadata.
 7. As Jules, create and push `onboard/jules` containing the public self-registration.
-8. As Admin, merge Jules's reviewed registration, grant `dev`, then commit and push the access change.
+8. As Admin, merge Jules's reviewed registration. As Alice, show that an ordinary `dev` member cannot
+   add Jules. Return to Admin, sign the `dev` membership revision, then commit and push it.
 9. As Jules, materialize accessible files and show that only local `.env` appears. Attempt to decrypt
    `.env.production` and `terraform/prod.auto.tfvars`, and show both authorization failures.
 10. As Sam, use both SRE-only files in a Terraform command through `gitvaulty run`. Show that Terraform
@@ -109,14 +112,15 @@ After generation, play the GIF from beginning to end and confirm:
 
 - it opens on the repository initialization, with no setup commands or random characters;
 - text is legible and no command or important result disappears too quickly;
-- `dev` and `sre` membership is visible;
+- `dev` and `sre` managers and membership are visible;
 - only Admin, Alice, Sam, and Jules appear, and every screen has the correct persona header;
 - onboarding registrations are committed and pushed before Admin merges and grants access;
+- Alice's rejected membership change is readable before Admin's signed grant;
 - encrypted secret and access-policy changes are committed and pushed;
 - local, production, and Terraform access rules match the scenario contract;
 - Jules's two authorization failures are readable;
 - Sam's Terraform success and final missing-file status are readable;
-- no secret value, age private key, or personal workstation path is visible; the expected disposable
+- no secret value, master identity, derived private key, or personal workstation path is visible; the expected disposable
   `/tmp/gitvaulty-readme-remote.git` push target is allowed;
 - the final frame remains long enough to read.
 

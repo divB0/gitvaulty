@@ -14,7 +14,20 @@ export {
   type EditTempCleanupOptions,
   type EditTempCleanupResult,
 } from "./edit-temp.js";
-export { createIdentity, currentRecipient, identityFile, readIdentity, readStoredIdentity, restoreIdentity, type StoredIdentity } from "./key.js";
+export {
+  createIdentity,
+  currentIdentity,
+  currentRecipient,
+  deriveIdentity,
+  identityFile,
+  parseSigningKey,
+  readIdentity,
+  readStoredIdentity,
+  restoreIdentity,
+  signMessage,
+  verifyMessage,
+  type StoredIdentity,
+} from "./key.js";
 export {
   normalizeGitVaultyUser,
   normalizeGitVaultyGroup,
@@ -33,6 +46,14 @@ export {
   type SecretFileGrant,
 } from "./registry.js";
 export {
+  appendGroupPolicy,
+  createGroupPolicy,
+  currentGroupPolicy,
+  policyHash,
+  type GroupPolicy,
+  type GroupPolicyMember,
+} from "./group-policy.js";
+export {
   initialize,
   createSecretFile,
   importSecretFile,
@@ -46,7 +67,9 @@ export {
   createGroup,
   deleteGroup,
   addGroupMember,
+  addGroupManager,
   removeGroupMember,
+  removeGroupManager,
   setFileAccess,
   encryptedFileFor,
   plaintextFileFor,

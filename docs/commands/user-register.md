@@ -1,6 +1,6 @@
 # `gitvaulty user register`
 
-Register your public age recipient in a repository without granting yourself access.
+Register your public encryption and signing keys without granting yourself access.
 
 ## Usage
 
@@ -15,15 +15,16 @@ npx gitvaulty user register alice
 ```
 
 The username is normalized to lowercase and must use letters, numbers, `.`, `_`, or `-`. GitVaulty
-loads your global age identity and derives its public `age1...` recipient. If no identity exists, it
-asks whether to create one. The private `AGE-SECRET-KEY-...` identity is never written to the
+loads your global master identity and derives its public `age1...` recipient and `ed25519:...`
+verification key. If no identity exists, it asks whether to create one. The private
+`GITVAULTY-IDENTITY-...` value is never written to the
 repository.
 
 ## What it changes
 
-GitVaulty adds the username and public recipient to `.gitvaulty/recipients.json` with no group
+GitVaulty adds the username and both public keys to `.gitvaulty/recipients.json` with no group
 memberships and no direct file grants. Existing groups, file policies, effective recipients, and
-ciphertext remain unchanged. Both the username and recipient must be unique.
+ciphertext remain unchanged. The username and both public keys must be unique.
 
 The command requires an initialized GitVaulty repository but does not require access to any
 encrypted file. It does not stage or commit the registry change.
@@ -37,7 +38,7 @@ git add .gitvaulty/recipients.json
 git commit -m "chore: register alice's GitVaulty key"
 ```
 
-After reviewing that commit, an existing authorized developer grants a group:
+After reviewing that commit, a current manager of the target group grants access:
 
 ```sh
 npx gitvaulty group add team alice

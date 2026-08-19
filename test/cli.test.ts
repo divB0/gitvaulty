@@ -9,15 +9,24 @@ import { createProgram, formatGroups, formatUsers, isMainModule, main } from "..
 import type { Registry } from "../src/registry.js";
 
 const registry: Registry = {
-  version: 3,
+  version: 4,
   defaultGroup: "team",
   users: [
-    { username: "zoe", recipient: "age1nx73yf2gmghjapkvxzkx26z72uakmnppchya8d4xfjd67hhglqdq7swsm0" },
-    { username: "alice", recipient: "age1m5zx6fzr9m7jwq4z0fu2r9nlzf4a32l9qk58880nejj2fp9u7ycse9dgse" },
+    { username: "zoe", recipient: "age1nx73yf2gmghjapkvxzkx26z72uakmnppchya8d4xfjd67hhglqdq7swsm0", signingKey: "ed25519:zoe" },
+    { username: "alice", recipient: "age1m5zx6fzr9m7jwq4z0fu2r9nlzf4a32l9qk58880nejj2fp9u7ycse9dgse", signingKey: "ed25519:alice" },
   ],
   groups: [
-    { name: "production", members: ["alice"] },
-    { name: "team", members: ["alice", "zoe"] },
+    { name: "production", policies: [{
+      revision: 1, previous: null, managers: ["alice"], members: [{
+        username: "alice", recipient: "age1m5zx6fzr9m7jwq4z0fu2r9nlzf4a32l9qk58880nejj2fp9u7ycse9dgse", signingKey: "ed25519:alice",
+      }], signedBy: "alice", signature: "ed25519:signature",
+    }] },
+    { name: "team", policies: [{
+      revision: 1, previous: null, managers: ["alice"], members: [
+        { username: "alice", recipient: "age1m5zx6fzr9m7jwq4z0fu2r9nlzf4a32l9qk58880nejj2fp9u7ycse9dgse", signingKey: "ed25519:alice" },
+        { username: "zoe", recipient: "age1nx73yf2gmghjapkvxzkx26z72uakmnppchya8d4xfjd67hhglqdq7swsm0", signingKey: "ed25519:zoe" },
+      ], signedBy: "alice", signature: "ed25519:signature",
+    }] },
   ],
   files: [{ path: ".env.gitvaulty", groups: ["team"], users: [] }],
 };
@@ -77,13 +86,14 @@ describe("GitVaulty CLI", () => {
     expect(command("run")?.options.map((option) => option.long)).toEqual(["--file", "--all"]);
     expect(command("key")?.commands.map((item) => item.name())).toEqual(["create", "public", "backup", "restore"]);
     expect(command("user")?.commands.map((item) => item.name())).toEqual(["register", "add", "list", "remove"]);
-    expect(command("group")?.commands.map((item) => item.name())).toEqual(["create", "add", "remove", "list", "delete"]);
+    expect(command("group")?.commands.map((item) => item.name())).toEqual(["create", "add", "remove", "manager", "list", "delete"]);
+    expect(command("group")?.commands.find((item) => item.name() === "manager")?.commands.map((item) => item.name())).toEqual(["add", "remove"]);
   });
 
   it("formats deterministic user memberships", () => {
     expect(formatUsers(registry)).toBe([
       "USERNAME  GROUPS",
-      "alice     production, team",
+      "alice     production (manager), team (manager)",
       "zoe       team",
       "",
     ].join("\n"));
@@ -91,9 +101,9 @@ describe("GitVaulty CLI", () => {
 
   it("formats groups and marks the default", () => {
     expect(formatGroups(registry)).toBe([
-      "GROUP           MEMBERS",
-      "production      alice",
-      "team (default)  alice, zoe",
+      "GROUP           MANAGERS  MEMBERS",
+      "production      alice     alice",
+      "team (default)  alice     alice, zoe",
       "",
     ].join("\n"));
   });

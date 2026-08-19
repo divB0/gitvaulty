@@ -13,7 +13,7 @@ finish() {
   local status=$?
   set +e
   if (( status == 0 )); then
-    printf '\n\033[1;32m✓ Demo complete: access is reviewable in Git; every user keeps a private key.\033[0m\n'
+    printf '\n\033[1;32m✓ Demo complete: managers sign access changes; every user keeps one private identity.\033[0m\n'
   else
     printf '\n\033[1;31m✗ Demo failed with exit status %d.\033[0m\n' "$status"
   fi
@@ -138,8 +138,6 @@ run_git 3 push -u origin main
 section "Create dev + sre access groups"
 run_gitvaulty 2 group create dev
 run_gitvaulty 2 group create sre
-run_gitvaulty 2 group add dev admin
-run_gitvaulty 2 group add sre admin
 run_gitvaulty 4 group list
 run_git 1 add -A
 run_git_commit 3 "chore: add dev and sre groups"
@@ -174,7 +172,26 @@ run_git 3 push
 
 as_user jules
 publish_registration jules Jules
-review_and_grant jules Jules dev
+
+as_user admin
+section "Review and merge Jules's public registration"
+run_git 2 switch main
+run_git 2 pull --ff-only
+run_git_merge 3 "onboard/jules" "merge: onboard Jules"
+
+as_user alice
+section "An ordinary dev cannot change signed membership"
+prompt "gitvaulty group add dev jules"
+gitvaulty group add dev jules || true
+sleep 4
+
+as_user admin
+section "A dev manager signs and publishes Jules's access"
+run_gitvaulty 2 group add dev jules
+run_gitvaulty 4 group list
+run_git 1 add -A
+run_git_commit 3 "chore: grant Jules dev access"
+run_git 3 push
 
 as_user jules
 section "Materialize only the local .env"

@@ -1,6 +1,6 @@
 # `gitvaulty key restore`
 
-Restore a native age private identity from a backup.
+Restore a GitVaulty master identity from a backup.
 
 ## Usage
 
@@ -8,13 +8,13 @@ Restore a native age private identity from a backup.
 npx gitvaulty key restore
 ```
 
-If a stored or environment-provided identity is already available, GitVaulty asks whether to replace the existing global identity. The default is no. It then prompts for the `AGE-SECRET-KEY-...` backup with masked input.
+If a stored or environment-provided identity is already available, GitVaulty asks whether to replace the existing global identity. The default is no. It then prompts for the `GITVAULTY-IDENTITY-...` backup with masked input.
 
-GitVaulty validates that the input contains exactly one native age private key, derives its public recipient, and writes it to the configured identity file with mode `0600`. The command reports the restored public recipient.
+GitVaulty validates exactly one master identity, derives both public keys, and writes the master identity to the configured file with mode `0600`.
 
 ## Replacement consequences
 
-Replacing your private identity does not update any repository registry. If the restored key has a different public recipient, repositories that still list the previous recipient will no longer recognize or authorize the new identity. An existing repository member must add the new recipient with [`gitvaulty user add`](user-add.md), and the old user can then be removed when appropriate.
+Replacing your private identity does not update any repository registry. If either derived public key differs, repositories listing the previous identity will no longer recognize or authorize the new one. Register the new public identity and have the appropriate managers grant access before removing the old user.
 
 When an identity comes from an environment variable, the replacement confirmation still appears, but the restored key is written to the configured identity file; it does not rewrite the environment variable.
 

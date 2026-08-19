@@ -12,14 +12,14 @@ Example output:
 
 ```text
 USERNAME  GROUPS
-alice     platform, team
+alice     platform (manager), team (manager)
 bob       team
 carol     —
 ```
 
-Users are sorted by username. Group names are sorted for each user. A dash means the user has no group membership; the user might still have direct access to individual files.
+Users are sorted by username. Group names are sorted for each user, and manager roles are labeled. A dash means the user has no group membership; the user might still have direct access to individual files.
 
-The command reads `.gitvaulty/recipients.json` inside the current Git repository. It does not require your private age identity, decrypt files, or modify repository state.
+The command verifies and reads `.gitvaulty/recipients.json`. It does not require your private identity, decrypt files, or modify repository state.
 
 The output intentionally does not include public recipients or per-file access. Use [`gitvaulty group list`](group-list.md) for the group-oriented view and [`gitvaulty access`](access.md) to inspect or change one file interactively.
 

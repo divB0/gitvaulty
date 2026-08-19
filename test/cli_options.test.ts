@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const operationMocks = vi.hoisted(() => ({
+  addGroupManager: vi.fn(async () => undefined),
   cleanSecretFiles: vi.fn(async () => ({ removed: [], retained: [] })),
   createSecretFile: vi.fn(async (_repository, file: string) => ({ file })),
   diffSecretFiles: vi.fn(async (): Promise<Array<{
@@ -21,6 +22,7 @@ const operationMocks = vi.hoisted(() => ({
     fingerprint: "a".repeat(64),
   })),
   registerUser: vi.fn(async () => undefined),
+  removeGroupManager: vi.fn(async () => undefined),
   runWithFiles: vi.fn(async () => ({ code: 0, retained: [] })),
   setFileAccess: vi.fn(async (_repository, file: string, access) => ({ path: `${file}.gitvaulty`, ...access })),
   statusSecretFiles: vi.fn(async () => []),
@@ -29,9 +31,16 @@ const operationMocks = vi.hoisted(() => ({
 
 const keyMocks = vi.hoisted(() => ({
   createIdentity: vi.fn(),
+  currentIdentity: vi.fn(async () => ({
+    identity: "GITVAULTY-IDENTITY-OWNER",
+    ageIdentity: "AGE-SECRET-KEY-OWNER",
+    recipient: "age1owner",
+    signingKey: "ed25519:owner",
+  })),
   currentRecipient: vi.fn(async () => "age1owner"),
   identityFile: vi.fn(() => "/identity.txt"),
-  readIdentity: vi.fn(async () => "AGE-SECRET-KEY-OWNER"),
+  parseSigningKey: vi.fn((value: string) => value),
+  readIdentity: vi.fn(async () => "GITVAULTY-IDENTITY-OWNER"),
   restoreIdentity: vi.fn(),
 }));
 
@@ -55,11 +64,11 @@ const registry = vi.hoisted(() => ({
   defaultGroup: "team",
   files: [{ path: "secret.txt.gitvaulty", groups: ["team"], users: [] }],
   groups: [
-    { name: "production", members: ["owner"] },
-    { name: "team", members: ["owner"] },
+    { name: "production", policies: [{ revision: 1, previous: null, managers: ["owner"], members: [{ username: "owner", recipient: "age1owner", signingKey: "ed25519:owner" }], signedBy: "owner", signature: "ed25519:signature" }] },
+    { name: "team", policies: [{ revision: 1, previous: null, managers: ["owner"], members: [{ username: "owner", recipient: "age1owner", signingKey: "ed25519:owner" }], signedBy: "owner", signature: "ed25519:signature" }] },
   ],
-  users: [{ username: "owner", recipient: "age1owner" }],
-  version: 3,
+  users: [{ username: "owner", recipient: "age1owner", signingKey: "ed25519:owner" }],
+  version: 4,
 }));
 
 vi.mock("@inquirer/prompts", () => promptMocks);
@@ -141,7 +150,16 @@ describe("GitVaulty CLI option callbacks", () => {
     expect(operationMocks.registerUser).toHaveBeenCalledWith(repository, {
       username: "alice",
       recipient: "age1owner",
+      signingKey: "ed25519:owner",
     });
+  });
+
+  it("routes manager promotions and demotions through signed group operations", async () => {
+    await createProgram().parseAsync(["node", "gitvaulty", "group", "manager", "add", "dev", "alice"]);
+    expect(operationMocks.addGroupManager).toHaveBeenCalledWith(repository, "dev", "alice");
+
+    await createProgram().parseAsync(["node", "gitvaulty", "group", "manager", "remove", "dev", "alice"]);
+    expect(operationMocks.removeGroupManager).toHaveBeenCalledWith(repository, "dev", "alice");
   });
 
   it("rejects an initialized repository before prompting for identity or username", async () => {
@@ -201,6 +219,7 @@ describe("GitVaulty CLI option callbacks", () => {
     expect(operationMocks.initialize).toHaveBeenCalledWith(repository, {
       username: "owner",
       recipient: "age1owner",
+      signingKey: "ed25519:owner",
     });
     expect(agentSkillPreflight).toHaveBeenCalledWith(repository);
   });

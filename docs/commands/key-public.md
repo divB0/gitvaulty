@@ -1,6 +1,6 @@
 # `gitvaulty key public`
 
-Print the public age recipient derived from your private identity.
+Print both public keys derived from your private master identity.
 
 ## Usage
 
@@ -8,17 +8,18 @@ Print the public age recipient derived from your private identity.
 npx gitvaulty key public
 ```
 
-Output is a single `age1...` recipient suitable for sharing with a teammate:
+The output is safe to share:
 
 ```text
-age1example...
+Age recipient: age1example...
+Signing key: ed25519:example...
 ```
 
-The public recipient allows others to encrypt files for you. It cannot decrypt files and does not reveal the private identity.
+The age recipient allows others to encrypt files for you. The Ed25519 key lets repositories verify policy signatures made while you were a manager. Neither public key can decrypt, sign, or reveal the master identity.
 
 When joining an existing GitVaulty repository, prefer
-[`gitvaulty user register <username>`](user-register.md). It derives the same public recipient and
-adds it to the repository with no access so an existing member can review and approve a group grant.
+[`gitvaulty user register <username>`](user-register.md). It derives the same public identity and
+adds it to the repository with no access so a group manager can review and approve a group grant.
 
 If no identity is available, GitVaulty asks whether to create one. Declining stops the command. Identity environment variables and configured key files are supported as described in [`gitvaulty key`](key.md#identity-sources).
 

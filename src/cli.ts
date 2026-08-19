@@ -6,9 +6,19 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { executeChecked } from "./process.js";
 import { findRepository, type Repository } from "./repository.js";
-import { createIdentity, currentRecipient, identityFile, readIdentity, restoreIdentity } from "./key.js";
+import {
+  createIdentity,
+  currentIdentity,
+  currentRecipient,
+  identityFile,
+  parseSigningKey,
+  readIdentity,
+  restoreIdentity,
+  type StoredIdentity,
+} from "./key.js";
 import {
   addGroupMember,
+  addGroupManager,
   addUser,
   cleanSecretFiles,
   createGroup,
@@ -23,6 +33,7 @@ import {
   materializeSecretFiles,
   readSecretFile,
   removeGroupMember,
+  removeGroupManager,
   removeUser,
   registerUser,
   runWithFiles,
@@ -40,6 +51,7 @@ import {
   usernamesFor,
   type Registry,
 } from "./registry.js";
+import { currentGroupPolicy } from "./group-policy.js";
 import { GitVaultyError, TrackedPlaintextError } from "./errors.js";
 import { cleanupAbandonedEditDirectories } from "./edit-temp.js";
 import {
@@ -69,7 +81,11 @@ export function formatUsers(registry: Registry): string {
   const rows = registry.users
     .map((user) => [
       user.username,
-      registry.groups.filter((group) => group.members.includes(user.username)).map((group) => group.name).sort().join(", ") || "—",
+      registry.groups.flatMap((group) => {
+        const policy = currentGroupPolicy(group);
+        if (!policy.members.some((member) => member.username === user.username)) return [];
+        return [policy.managers.includes(user.username) ? `${group.name} (manager)` : group.name];
+      }).sort().join(", ") || "—",
     ])
     .sort((left, right) => left[0]!.localeCompare(right[0]!));
   const allRows = [["USERNAME", "GROUPS"], ...rows];
@@ -79,13 +95,18 @@ export function formatUsers(registry: Registry): string {
 
 export function formatGroups(registry: Registry): string {
   if (registry.groups.length === 0) return "No groups.\n";
-  const rows = registry.groups.map((group) => [
-    group.name === registry.defaultGroup ? `${group.name} (default)` : group.name,
-    group.members.join(", ") || "—",
-  ]);
-  const allRows = [["GROUP", "MEMBERS"], ...rows];
-  const width = Math.max(...allRows.map((row) => row[0]!.length));
-  return `${allRows.map((row) => `${row[0]!.padEnd(width)}  ${row[1]!}`).join("\n")}\n`;
+  const rows = registry.groups.map((group) => {
+    const policy = currentGroupPolicy(group);
+    return [
+      group.name === registry.defaultGroup ? `${group.name} (default)` : group.name,
+      policy.managers.join(", "),
+      policy.members.map((member) => member.username).join(", "),
+    ];
+  });
+  const allRows = [["GROUP", "MANAGERS", "MEMBERS"], ...rows];
+  const groupWidth = Math.max(...allRows.map((row) => row[0]!.length));
+  const managerWidth = Math.max(...allRows.map((row) => row[1]!.length));
+  return `${allRows.map((row) => `${row[0]!.padEnd(groupWidth)}  ${row[1]!.padEnd(managerWidth)}  ${row[2]!}`).join("\n")}\n`;
 }
 
 async function hasIdentity(): Promise<boolean> {
@@ -96,12 +117,12 @@ async function hasIdentity(): Promise<boolean> {
   }
 }
 
-async function ensureCliIdentity(): Promise<string> {
-  if (await hasIdentity()) return currentRecipient();
+async function ensureCliIdentity(): Promise<StoredIdentity> {
+  if (await hasIdentity()) return currentIdentity();
   if (!await confirm({ message: "No GitVaulty key found. Create one now?", default: true })) throw new Error("A GitVaulty key is required.");
   const result = await createIdentity();
-  process.stdout.write(`Created global key at ${identityFile()}.\nPublic recipient: ${result.recipient}\nBack it up with \`gitvaulty key backup\`.\n`);
-  return result.recipient;
+  process.stdout.write(`Created global identity at ${identityFile()}.\nAge recipient: ${result.recipient}\nSigning key: ${result.signingKey}\nBack it up with \`gitvaulty key backup\`.\n`);
+  return result;
 }
 
 function collect(value: string, previous: string[]): string[] { return [...previous, value]; }
@@ -228,12 +249,16 @@ export function createProgram(options: {
   program.command("init").description("Initialize GitVaulty in this repository").action(async () => {
     const repo = await findRepository();
     if (await isInitialized(repo)) throw new GitVaultyError("GitVaulty is already initialized.");
-    const recipient = await ensureCliIdentity();
+    const identity = await ensureCliIdentity();
     const username = await input({ message: "Your username", default: await localUsername(repo.root), validate: (value) => {
       try { normalizeUsername(value); return true; }
       catch (error) { return (error as Error).message; }
     } });
-    await initialize(repo, { username: normalizeUsername(username), recipient });
+    await initialize(repo, {
+      username: normalizeUsername(username),
+      recipient: identity.recipient,
+      signingKey: identity.signingKey,
+    });
     process.stdout.write("GitVaulty initialized.\n");
     await agentSkillPreflight(repo);
   });
@@ -378,10 +403,11 @@ export function createProgram(options: {
   const key = program.command("key").description("Manage your global age key");
   key.command("create").description("Create a global age key").action(async () => {
     const result = await createIdentity();
-    process.stdout.write(`Created global key at ${identityFile()}.\nPublic recipient: ${result.recipient}\nBack it up with \`gitvaulty key backup\`.\n`);
+    process.stdout.write(`Created global identity at ${identityFile()}.\nAge recipient: ${result.recipient}\nSigning key: ${result.signingKey}\nBack it up with \`gitvaulty key backup\`.\n`);
   });
-  key.command("public").description("Print the public age recipient").action(async () => {
-    process.stdout.write(`${await ensureCliIdentity()}\n`);
+  key.command("public").description("Print the public GitVaulty identity").action(async () => {
+    const identity = await ensureCliIdentity();
+    process.stdout.write(`Age recipient: ${identity.recipient}\nSigning key: ${identity.signingKey}\n`);
   });
   key.command("backup").description("Print the private key for backup").action(async () => {
     await ensureCliIdentity();
@@ -391,16 +417,20 @@ export function createProgram(options: {
   key.command("restore").description("Restore a private key backup").action(async () => {
     const replace = await hasIdentity();
     if (replace && !await confirm({ message: "Replace the existing global GitVaulty key?", default: false })) return;
-    const result = await restoreIdentity(await password({ message: "Paste your AGE-SECRET-KEY backup", mask: "*" }), identityFile(), replace);
+    const result = await restoreIdentity(await password({ message: "Paste your GITVAULTY-IDENTITY backup", mask: "*" }), identityFile(), replace);
     process.stdout.write(`Restored global key for ${result.recipient}.\n`);
   });
 
   const user = program.command("user").description("Manage users");
   user.command("register <username>").description("Register your public recipient without granting access").action(async (username: string) => {
     const repo = await preparedRepository();
-    const recipient = await ensureCliIdentity();
+    const identity = await ensureCliIdentity();
     const normalizedUsername = normalizeUsername(username);
-    await registerUser(repo, { username: normalizedUsername, recipient });
+    await registerUser(repo, {
+      username: normalizedUsername,
+      recipient: identity.recipient,
+      signingKey: identity.signingKey,
+    });
     process.stdout.write(`Registered ${normalizedUsername} with no access. Commit .gitvaulty/recipients.json for review.\n`);
   });
   user.command("add").description("Add a user to groups").action(async () => {
@@ -412,6 +442,11 @@ export function createProgram(options: {
       catch (error) { return (error as Error).message; }
     } });
     const recipient = parseRecipient(publicKey);
+    const publicSigningKey = await input({ message: "Public Ed25519 signing key", validate: (value) => {
+      try { parseSigningKey(value); return true; }
+      catch (error) { return (error as Error).message; }
+    } });
+    const signingKey = parseSigningKey(publicSigningKey);
     const username = await input({ message: "Username", validate: (value) => {
       try { normalizeUsername(value); return true; }
       catch (error) { return (error as Error).message; }
@@ -422,7 +457,7 @@ export function createProgram(options: {
       required: true,
     });
     const normalizedUsername = normalizeUsername(username);
-    await addUser(repo, { username: normalizedUsername, recipient, groups: selected });
+    await addUser(repo, { username: normalizedUsername, recipient, signingKey, groups: selected });
     process.stdout.write(`Added ${normalizedUsername}.\n`);
   });
   user.command("list").description("List users and groups").action(async () => {
@@ -447,7 +482,10 @@ export function createProgram(options: {
     await ensureCliIdentity();
     const normalized = normalizeGroupName(name);
     await createGroup(repo, normalized);
-    process.stdout.write(`Created group ${normalized}.\n`);
+    const identity = await currentIdentity();
+    const registry = await readRegistry(repo);
+    const creator = registry.users.find((user) => user.recipient === identity.recipient)!;
+    process.stdout.write(`Created group ${normalized}; ${creator.username} is its manager and member.\n`);
   });
   group.command("add <group> <username>").description("Add a user to a group").action(async (name: string, username: string) => {
     const repo = await preparedRepository();
@@ -460,6 +498,19 @@ export function createProgram(options: {
     await ensureCliIdentity();
     await removeGroupMember(repo, name, username);
     process.stdout.write(`Removed ${normalizeUsername(username)} from ${normalizeGroupName(name)}.\n`);
+  });
+  const manager = group.command("manager").description("Manage group managers");
+  manager.command("add <group> <username>").description("Promote a group member to manager").action(async (name: string, username: string) => {
+    const repo = await preparedRepository();
+    await ensureCliIdentity();
+    await addGroupManager(repo, name, username);
+    process.stdout.write(`Promoted ${normalizeUsername(username)} to manager of ${normalizeGroupName(name)}.\n`);
+  });
+  manager.command("remove <group> <username>").description("Demote a group manager but keep membership").action(async (name: string, username: string) => {
+    const repo = await preparedRepository();
+    await ensureCliIdentity();
+    await removeGroupManager(repo, name, username);
+    process.stdout.write(`Demoted ${normalizeUsername(username)} from manager of ${normalizeGroupName(name)}.\n`);
   });
   group.command("list").description("List groups and members").action(async () => {
     process.stdout.write(formatGroups(await readRegistry(await preparedRepository())));
