@@ -1,6 +1,7 @@
 # `gitvaulty init`
 
-Initialize GitVaulty in the current Git repository.
+Explicitly prepare GitVaulty in the current Git repository. Running this command is optional because
+every repository-scoped command performs the same preparation before its requested operation.
 
 ## Usage
 
@@ -11,12 +12,17 @@ npx gitvaulty init
 ## What it does
 
 1. Finds the root of the current Git repository.
-2. Stops immediately without prompting if `.gitvaulty/recipients.json` already exists.
-3. Loads your global age identity. If no identity exists, GitVaulty asks whether to create one.
-4. Prompts for your GitVaulty username. The default is derived from `git config user.email`, then `git config user.name`.
-5. Creates you as the first user and creates a default `team` group containing you.
-6. Writes `.gitvaulty/config.yaml`, an empty recipient registry, and the SOPS configuration.
-7. Offers to install the repository-scoped agent skill at `.agents/skills/gitvaulty/SKILL.md`.
+2. Loads your global age identity. If none exists interactively, GitVaulty offers to restore a
+   backup through masked input, create a new key, or cancel.
+3. If the recipient registry is missing, prompts for your GitVaulty username. The default is derived
+   from `git config user.email`, then `git config user.name`.
+4. Creates you as the first user and creates a default `team` group containing you.
+5. Writes `.gitvaulty/config.yaml`, the recipient registry, and the SOPS configuration. When the
+   registry already exists, it is validated and preserved while missing config or SOPS files are
+   recreated.
+6. Installs or updates the repository-scoped agent skill at
+   `.agents/skills/gitvaulty/SKILL.md` when skill management is enabled.
+7. Reports that GitVaulty is ready. Repeated invocations are safe and idempotent.
 
 The initial registry is `.gitvaulty/recipients.json`:
 
@@ -47,14 +53,10 @@ task through `gitvaulty run -f <path> -- <command>`. It tells agents not to prin
 them into command lines, include them in prompts, or commit plaintext files.
 
 GitVaulty compares the repository skill with the version bundled in the installed package using a
-SHA-256 digest of text with normalized line endings. If the skill is missing or differs, the command
-offers to install or update it, skip once, or stop managing it for this repository. Updating a
-differing skill explicitly warns that local customizations will be replaced.
-
-Choosing **Don't ask again in this repository** changes `agentSkill.mode` to `disabled`. This is a
-repository-wide preference that should be committed. GitVaulty then leaves missing, old, and custom
-skill files untouched. Non-interactive repository commands warn and continue without modifying the
-skill or preference.
+SHA-256 digest of text with normalized line endings. In `managed` mode, a missing skill is installed
+and a differing skill is replaced automatically, including during non-interactive and CI commands.
+Set `agentSkill.mode` to `disabled` before maintaining custom instructions; GitVaulty then leaves
+missing, old, and custom skill files untouched.
 
 The skill is operating guidance, not a security boundary. An agent with unrestricted shell access
 can still read plaintext while it is materialized. Enforce hard isolation and prompt blocking in the
@@ -67,11 +69,12 @@ Only your public age recipient is stored in the repository. A newly generated pr
 ## Important behavior
 
 - The command must run inside a Git repository.
-- It stops before any identity or username prompts if `.gitvaulty/recipients.json` already exists.
+- It checks the global identity on every invocation, including when the repository is already ready.
+- It never replaces an existing recipient registry during repair.
 - It does not create, import, encrypt, stage, or commit any secret files.
 - It does not run `git add` or modify `.gitignore`.
-- It never replaces a differing agent skill without explicit approval.
-- Repository commands repeat the same check while `agentSkill.mode` is `managed`.
+- It automatically replaces a differing agent skill while `agentSkill.mode` is `managed`.
+- Repository commands run the same preparation before their own operation.
 - An existing `.sops.yaml` is replaced during successful initialization, so review or preserve a pre-existing SOPS configuration first.
 
 ## Next steps

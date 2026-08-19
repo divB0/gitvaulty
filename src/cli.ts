@@ -225,21 +225,25 @@ export function createProgram(options: {
   const program = new Command().name("gitvaulty").description("Git-backed secrets for humans.").version(packageVersion).enablePositionalOptions();
   const agentSkillPreflight = options.agentSkillPreflight ?? ensureRepositoryAgentSkill;
   const interactive = options.interactive ?? Boolean(process.stdin.isTTY && process.stderr.isTTY);
-  const preparedRepository = async (): Promise<Repository> => {
+  const prepareRepository = async (initialUsername?: string): Promise<{ repo: Repository; initialized: boolean }> => {
     const repo = await findRepository();
     const recipient = await ensureCliIdentity(interactive);
+    let initialized = false;
     if (await isInitialized(repo)) {
       await ensureRepositoryMetadata(repo);
     } else {
-      await initialize(repo, { username: await bootstrapUsername(repo, interactive), recipient });
+      const username = initialUsername ?? await bootstrapUsername(repo, interactive);
+      await initialize(repo, { username, recipient });
+      initialized = true;
       process.stderr.write("GitVaulty initialized.\n");
     }
     await agentSkillPreflight(repo);
-    return repo;
+    return { repo, initialized };
   };
+  const preparedRepository = async (): Promise<Repository> => (await prepareRepository()).repo;
 
   program.command("init").description("Initialize GitVaulty in this repository").action(async () => {
-    await preparedRepository();
+    await prepareRepository();
     process.stdout.write("GitVaulty is ready.\n");
   });
 
@@ -393,9 +397,14 @@ export function createProgram(options: {
 
   const user = program.command("user").description("Manage users");
   user.command("register <username>").description("Register your public recipient without granting access").action(async (username: string) => {
-    const repo = await preparedRepository();
-    const recipient = await currentRecipient();
     const normalizedUsername = normalizeUsername(username);
+    const prepared = await prepareRepository(normalizedUsername);
+    const { repo } = prepared;
+    const recipient = await currentRecipient();
+    if (prepared.initialized) {
+      process.stdout.write(`Registered ${normalizedUsername} as repository owner in team. Commit .gitvaulty/recipients.json for review.\n`);
+      return;
+    }
     await registerUser(repo, { username: normalizedUsername, recipient });
     process.stdout.write(`Registered ${normalizedUsername} with no access. Commit .gitvaulty/recipients.json for review.\n`);
   });

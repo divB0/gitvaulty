@@ -157,6 +157,22 @@ describe("GitVaulty CLI option callbacks", () => {
     });
   });
 
+  it("uses the requested registration name when that command initializes the repository", async () => {
+    operationMocks.isInitialized.mockResolvedValueOnce(false);
+
+    await createProgram({ interactive: true }).parseAsync([
+      "node", "gitvaulty", "user", "register", "Alice",
+    ]);
+
+    expect(promptMocks.input).not.toHaveBeenCalled();
+    expect(operationMocks.initialize).toHaveBeenCalledWith(repository, {
+      username: "alice",
+      recipient: "age1owner",
+    });
+    expect(operationMocks.registerUser).not.toHaveBeenCalled();
+    expect(process.stdout.write).toHaveBeenCalledWith(expect.stringContaining("alice as repository owner in team"));
+  });
+
   it("makes explicit initialization idempotent through the shared bootstrap", async () => {
     const agentSkillPreflight = vi.fn(async () => undefined);
 
@@ -281,6 +297,17 @@ describe("GitVaulty CLI option callbacks", () => {
     ])).rejects.toThrow("Run `gitvaulty key restore` or `gitvaulty key create`");
 
     expect(promptMocks.select).not.toHaveBeenCalled();
+  });
+
+  it("fails non-interactively when an uninitialized repository has no derived username", async () => {
+    operationMocks.isInitialized.mockResolvedValueOnce(false);
+
+    await expect(createProgram({ interactive: false }).parseAsync([
+      "node", "gitvaulty", "group", "list",
+    ])).rejects.toThrow("A GitVaulty username is required");
+
+    expect(promptMocks.input).not.toHaveBeenCalled();
+    expect(operationMocks.initialize).not.toHaveBeenCalled();
   });
 
   it("passes repeated file options to materialize, clean, and status", async () => {

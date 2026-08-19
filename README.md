@@ -73,20 +73,23 @@ committed.
 
 ## Quick start
 
-Run these commands inside an existing Git repository. Initialize GitVaulty first:
-
-```sh
-npx gitvaulty init
-```
-
-Initialization creates a `team` group containing you. New and imported files use `team` by default,
-so the normal workflow needs no access flags. It also creates the public recipient registry, the
-repository preferences, and the SOPS configuration.
-
-Create and encrypt a file:
+Run GitVaulty inside an existing Git repository. Repository commands prepare GitVaulty
+automatically, so the first command can create a secret directly:
 
 ```sh
 npx gitvaulty create .env
+```
+
+If your global key is missing, GitVaulty offers to restore an existing backup with masked input or
+create a new key. It then creates a `team` group containing you, the public recipient registry,
+repository preferences, SOPS configuration, and managed repository agent skill before continuing
+the requested command. New and imported files use `team` by default, so the normal workflow needs no
+access flags.
+
+You can run the same preparation explicitly and idempotently before other work:
+
+```sh
+npx gitvaulty init
 ```
 
 GitVaulty opens a private temporary `.env` in your editor and stores its contents as
@@ -101,10 +104,11 @@ git commit -m "chore: initialize GitVaulty"
 Never commit the plaintext `.env`. If the plaintext already exists, use
 `npx gitvaulty import .env` instead of `create`.
 
-GitVaulty offers to install `.agents/skills/gitvaulty/SKILL.md`. Compatible coding agents can
+While `agentSkill.mode` is `managed`, GitVaulty automatically installs or updates
+`.agents/skills/gitvaulty/SKILL.md` from the currently installed CLI. Compatible coding agents can
 discover this repository-scoped skill and learn to use `gitvaulty run` with only the files required
-for a task, without placing secret values in prompts or command arguments. A differing skill is
-never replaced without explicit approval.
+for a task, without placing secret values in prompts or command arguments. Set the repository mode
+to `disabled` before maintaining custom skill instructions.
 
 ### Add a new developer
 
@@ -259,7 +263,7 @@ historical ciphertext they already copied, so rotate every external credential t
 
 | Command | Purpose |
 | --- | --- |
-| [`gitvaulty init`](docs/commands/init.md) | Initialize GitVaulty in a Git repository. |
+| [`gitvaulty init`](docs/commands/init.md) | Explicitly prepare or repair GitVaulty repository state. |
 | [`gitvaulty create`](docs/commands/create.md) | Create and edit a new encrypted file. |
 | [`gitvaulty import`](docs/commands/import.md) | Encrypt an existing plaintext file or update existing ciphertext. |
 | [`gitvaulty access`](docs/commands/access.md) | Replace a file's group and direct-user access policy. |
@@ -524,23 +528,22 @@ termination signals; an uncatchable crash, power loss, or `SIGKILL` can still le
 
 Private-key variables are available to SOPS but removed from the child process environment.
 
-The skill offered by `gitvaulty init` teaches coding agents this workflow and warns them not to
+The repository skill maintained by GitVaulty teaches coding agents this workflow and warns them not to
 print, log, or inspect secret values unnecessarily. Agent instructions reduce accidental exposure;
 they are not a security sandbox. Use the agent harness or operating-system isolation when an agent
 must be technically prevented from reading plaintext available to its process.
 
 ### Agent skill updates
 
-Before every command that operates on an initialized repository, GitVaulty compares
+Before every repository command, GitVaulty compares
 `.agents/skills/gitvaulty/SKILL.md` with the skill bundled in the installed GitVaulty package. It
 uses a SHA-256 digest of normalized text, so normal LF and CRLF line-ending differences do not look
-like updates. Global `key` commands, help, version output, and uninitialized repositories do not run
-this check.
+like updates. The check runs after any required implicit initialization. Global `key` commands,
+help, and version output do not inspect repository skill state.
 
-When the skill is missing or differs, an interactive command offers to install or update it, skip
-once, or stop managing it for the repository. Updating differing content requires explicit approval
-because it replaces local customizations. Non-interactive commands print a warning and continue
-without changing files.
+In the default `managed` mode, a missing skill is installed and differing content is replaced
+automatically, including during non-interactive and CI commands. Installation and update notices go
+to stderr so command output remains composable.
 
 The repository-wide policy is stored in `.gitvaulty/config.yaml`:
 
@@ -550,8 +553,8 @@ agentSkill:
   mode: managed
 ```
 
-Set `mode: disabled`—or choose **Don't ask again in this repository** at the prompt—to leave the
-skill untouched and suppress future checks for every contributor. Commit the configuration change.
+Set `mode: disabled` before adding local customizations to leave the skill untouched for every
+contributor. Commit the configuration change.
 
 ## Supported files
 

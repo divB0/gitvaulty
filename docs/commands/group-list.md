@@ -19,7 +19,10 @@ team (default)  alice, bob, carol
 
 The default group is labeled `(default)`. Groups and member lists are normalized and stored in sorted order. A dash is displayed for an empty group.
 
-The command reads `.gitvaulty/recipients.json` in the current Git repository. It does not require your private age identity, decrypt files, show which files use each group, or modify repository state.
+The command runs the standard repository preparation first, including the global identity check,
+implicit initialization or metadata repair, and managed agent-skill synchronization. It then reads
+`.gitvaulty/recipients.json` without decrypting files or showing which files use each group. In an
+already current repository, the listing itself does not modify access policy.
 
 ## Related commands
 

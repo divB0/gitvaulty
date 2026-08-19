@@ -29,7 +29,7 @@ When neither option is supplied, access defaults to the registry's default group
 
 ## What it does
 
-1. Verifies that GitVaulty is initialized and your age identity is a registered user.
+1. Prepares GitVaulty automatically and verifies that your age identity is a registered user.
 2. Refuses paths outside the repository, internal `.git` or `.gitvaulty` paths, symlinked paths, and names already ending in `.gitvaulty`.
 3. Refuses to overwrite an existing plaintext or encrypted file.
 4. Registers `<path>.gitvaulty` and its access policy in `.gitvaulty/recipients.json`.
