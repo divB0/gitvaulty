@@ -112,8 +112,12 @@ details out of the visible recording.
 - Store runtime identities and plaintext only in the tape's explicit `/tmp` paths.
 - Never print plaintext secret values. Demonstrate success through filenames, authorization
   messages, Terraform validation, and cleanup status.
-- Keep hidden setup commands before `Show` and clear the terminal with the direct ANSI sequence in
-  the tape. The external `clear` command can leave hidden setup text in VHS's first frame.
+- Keep setup commands hidden, use VHS's native `Ctrl+L` before the first persona header, and call
+  `Show` only after the hidden readiness marker confirms setup has finished and the complete header
+  is on the cleared terminal. Hold the header briefly before typing the first scene so frame zero is
+  complete. ANSI or external `clear` commands can leave hidden setup text in VHS's first frame.
+- Keep the internal `bash "$DEMO_SCRIPT"` handoff hidden. Wait for the driver's first section header
+  before calling `Show` again so implementation details never appear between visible scenes.
 - Put `# User: <name> (<role>)` at the top of every cleared screen. The header must match the identity
   and Git author that execute the commands below it.
 - Show the real Git boundary: onboarding branch, registration commit, push, Admin pull/merge, group

@@ -42,10 +42,17 @@ Type@0ms 'chmod +x "$DEMO_KEYS/editor.sh" && export EDITOR="$DEMO_KEYS/editor.sh
 Enter
 Type@0ms "as_user admin"
 Enter
-Type@0ms 'printf "\033[2J\033[H\033[1;38;5;117m# User: Admin (repository owner)\033[0m\n"'
+Type@0ms "printf '\104\105\115\117\137\122\105\101\104\131\n'"
+Enter
+Wait+Screen@30s /DEMO_READY/
+Sleep 500ms
+Ctrl+L
+Sleep 500ms
+Type@0ms "# User: Admin (repository owner)"
 Enter
 Sleep 500ms
 Show
+Sleep 1s
 
 Type "# First command bootstraps GitVaulty automatically"
 Enter
@@ -59,7 +66,10 @@ Wait+Screen@30s /GitVaulty initialized/
 Wait+Screen@30s /Installed agent skill/
 Wait+Screen@30s /Created group dev/
 Sleep 3s
-Type 'bash "$DEMO_SCRIPT"'
+Hide
+Type@0ms 'bash "$DEMO_SCRIPT"'
 Enter
+Wait+Screen@30s /Create sre and review both signed access groups/
+Show
 Wait+Screen@600s /Demo complete/
 Sleep 4s
