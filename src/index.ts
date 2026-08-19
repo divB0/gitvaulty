@@ -46,6 +46,14 @@ export {
   type SecretFileGrant,
 } from "./registry.js";
 export {
+  appendGroupPolicy,
+  createGroupPolicy,
+  currentGroupPolicy,
+  policyHash,
+  type GroupPolicy,
+  type GroupPolicyMember,
+} from "./group-policy.js";
+export {
   initialize,
   createSecretFile,
   importSecretFile,
