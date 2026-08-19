@@ -14,7 +14,7 @@ npx gitvaulty key <command>
 | --- | --- |
 | [`key create`](key-create.md) | Generate and store one master identity. |
 | [`key public`](key-public.md) | Print the public age recipient and signing key. |
-| [`key backup`](key-backup.md) | Print the private identity after confirmation. |
+| [`key backup`](key-backup.md) | Save the private identity to a password manager, clipboard, or stdout. |
 | [`key restore`](key-restore.md) | Restore a backed-up private identity. |
 
 ## Identity sources

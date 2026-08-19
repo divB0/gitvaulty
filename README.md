@@ -455,6 +455,19 @@ The global GitVaulty master identity normally lives at `~/.config/gitvaulty/iden
 up once with `gitvaulty key backup`; the same identity works across GitVaulty repositories. Native
 age/X25519 and Ed25519 keys are derived in memory for each command and are never cached on disk.
 
+The interactive backup command can save the identity to a detected 1Password or Bitwarden CLI,
+copy it to the desktop clipboard, or print it after an additional warning. The password-manager
+picker keeps supported but unavailable CLIs selectable so it can show installation instructions and
+check again without restarting. For scripts, choose the destination explicitly:
+
+```sh
+npx gitvaulty key backup --clipboard
+npx gitvaulty key backup --print
+```
+
+`--clipboard` and `--print` are mutually exclusive. Clipboard history and synchronization tools may
+retain copied keys; direct password-manager storage is preferred.
+
 A new developer runs `gitvaulty user register <username>` and commits both public keys with no
 access. An existing group manager reviews that commit and runs
 `gitvaulty group add <group> <username>` to approve access. `user add` remains available as an

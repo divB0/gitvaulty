@@ -47,7 +47,9 @@ try {
         { encoding: "utf8" },
       );
       assert.equal(keyBackupHelp.status, 0, keyBackupHelp.stderr);
-      assert.match(keyBackupHelp.stdout, /Print the private key for backup/);
+      assert.match(keyBackupHelp.stdout, /Back up the private GitVaulty key/);
+      assert.match(keyBackupHelp.stdout, /--clipboard/);
+      assert.match(keyBackupHelp.stdout, /--print/);
     } finally {
       process.chdir(originalCwd);
       await chmod(inaccessibleParent, 0o700);
