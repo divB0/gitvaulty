@@ -54,7 +54,7 @@ Sleep 500ms
 Show
 Sleep 1s
 
-Type "# First command bootstraps GitVaulty automatically"
+Type@0ms "# First command bootstraps GitVaulty automatically"
 Enter
 Sleep 1s
 Type "gitvaulty group create dev"

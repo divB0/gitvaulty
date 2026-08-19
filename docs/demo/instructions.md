@@ -88,21 +88,19 @@ Keep these scenes in this order so the animation tells one continuous access-con
 4. As Alice, create and push `onboard/alice` containing only `gitvaulty user register alice` and its
    public registration commit.
 5. As Admin, pull `main`, merge Alice's reviewed registration, grant `dev`, then commit and push the
-   access change. Switch to Alice and show that the single group grant unlocks every existing `dev`
-   file, then clean the materialized plaintext.
+   access change. Switch to Alice and use `gitvaulty cat .env --force` to show that the single group
+   grant unlocks the existing `dev` file.
 6. Repeat the registration, review, merge, grant, commit, and push flow for Sam and `sre`. Switch to
-   Sam and show that the group grant unlocks every existing `sre` file: local `.env`, production
-   `.env`, and the Terraform secrets. Clean the materialized plaintext.
+   Sam and use `gitvaulty cat ... --force` to show that the group grant unlocks every existing `sre`
+   file: local `.env`, production `.env`, and the Terraform secrets.
 7. As Jules, create and push `onboard/jules` containing the public self-registration.
 8. As Admin, merge Jules's reviewed registration. As Alice, show that an ordinary `dev` member cannot
    add Jules. Return to Admin, sign the `dev` membership revision, then commit and push it.
-9. As Jules, show the local `.env` through `gitvaulty cat .env --force` on a dedicated screen. The
-   screen must warn that the displayed values are generated placeholders for the demo and that real
-   secrets should not be printed in a terminal. Then show that the `dev` grant unlocks every existing
-   `dev` file, while only local `.env` appears. Attempt to decrypt `.env.production` and
+9. As Jules, use `gitvaulty cat .env --force` to show that the `dev` grant unlocks the local `.env`.
+   On the same screen, attempt `gitvaulty cat ... --force` for `.env.production` and
    `terraform/prod.auto.tfvars`, and show both authorization failures.
 10. As Sam, use both SRE-only files in a Terraform command through `gitvaulty run`. Show that Terraform
-    accepts them and that no plaintext secret file remains afterward.
+    accepts them.
 
 If a user-facing command, prompt, message, or access rule in one of these scenes changes, update the
 tape or driver and regenerate the GIF. Add a scene only when it strengthens this story; keep setup
@@ -112,9 +110,9 @@ details out of the visible recording.
 
 - Use dummy plaintext only. Never record real credentials or private identities.
 - Store runtime identities and plaintext only in the tape's explicit `/tmp` paths.
-- Print plaintext only in the dedicated Jules `gitvaulty cat .env --force` scene, using the generated
-  dummy fixture values. Keep the visible warning immediately above the command. Never substitute real
-  credentials, print another secret file, or expose private identities.
+- Print only the generated dummy fixture values in the warned `gitvaulty cat ... --force` scenes.
+  Keep the visible warning immediately above the commands. Never substitute real credentials or
+  expose private identities.
 - Keep setup commands hidden, use VHS's native `Ctrl+L` before the first persona header, and call
   `Show` only after the hidden readiness marker confirms setup has finished and the complete header
   is on the cleared terminal. Hold the header briefly before typing the first scene so frame zero is
@@ -123,10 +121,12 @@ details out of the visible recording.
   before calling `Show` again so implementation details never appear between visible scenes.
 - Put `# User: <name> (<role>)` at the top of every cleared screen. The header must match the identity
   and Git author that execute the commands below it.
+- Render persona headers, section descriptions, and warning comments instantly. Only commands and
+  interactive answers should appear as typed input.
 - Show the real Git boundary: onboarding branch, registration commit, push, Admin pull/merge, group
   grant commit, and push. Do not imply that self-registration grants access.
 - Use content-weighted pauses. Short success messages need about two seconds; created-file results
-  need about three; group listings, materialization status, and cleanup evidence need about four.
+  need about three; group listings and decrypted dummy values need about four.
 - Clear between scenes so each section has one readable purpose and long commands do not crowd later
   output.
 
@@ -140,18 +140,17 @@ After generation, play the GIF from beginning to end and confirm:
 - `dev` and `sre` managers and membership are visible;
 - only Admin, Alice, Sam, and Jules appear, and every screen has the correct persona header;
 - onboarding registrations are committed and pushed before Admin merges and grants access;
-- immediately after Alice and Sam receive group access, their materialization status lists every
-  existing file assigned to that group, followed by plaintext cleanup;
+- immediately after Alice and Sam receive group access, `gitvaulty cat` succeeds for every existing
+  file assigned to that group;
 - Alice's rejected membership change is readable before Admin's signed grant;
 - encrypted secret and access-policy changes are committed and pushed;
 - local, production, and Terraform access rules match the scenario contract;
-- Jules's dedicated `gitvaulty cat .env --force` screen includes the demo-only warning and displays
-  only the generated dummy fixture values;
+- every direct plaintext display includes the demo-only warning and only generated dummy values;
 - Jules's two authorization failures are readable;
 - Jules's `dev` grant visibly unlocks every `dev` file without unlocking either SRE-only file;
-- Sam's Terraform success and final missing-file status are readable;
-- apart from the warned dummy `.env` output, no plaintext value, master identity, derived private
-  key, or personal workstation path is visible; the expected disposable
+- Sam's Terraform success is readable;
+- apart from the warned dummy outputs, no plaintext value, master identity, derived private key, or
+  personal workstation path is visible; the expected disposable
   `/tmp/gitvaulty-readme.*/remote.git` push target is allowed;
 - the final frame remains long enough to read.
 

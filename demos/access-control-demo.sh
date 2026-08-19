@@ -98,6 +98,10 @@ run_git_merge() {
   sleep "$read_seconds"
 }
 
+warn_demo_output() {
+  printf '\033[1;33m# Demo only: do not print real secrets in a terminal.\033[0m\n'
+}
+
 publish_registration() {
   local username="$1"
   local display_name="$2"
@@ -129,10 +133,13 @@ review_and_grant() {
   run_git 3 push
 
   as_user "$username"
-  section "$display_name now inherits every $group secret"
-  run_gitvaulty 4 materialize
-  run_gitvaulty 4 status
-  run_gitvaulty 2 clean
+  section "$display_name can read every $group secret"
+  warn_demo_output
+  run_gitvaulty 4 cat .env --force
+  if [[ "$group" == "sre" ]]; then
+    run_gitvaulty 4 cat .env.production --force
+    run_gitvaulty 4 cat terraform/prod.auto.tfvars --force
+  fi
 }
 
 as_user admin
@@ -157,7 +164,6 @@ sleep 2
 run_gitvaulty 3 create terraform/prod.auto.tfvars --group sre
 
 section "Commit and push the encrypted secret files"
-run_git 4 status --short
 run_git 1 add -A
 run_git_commit 3 "chore: add environment secrets"
 run_git 3 push
@@ -194,20 +200,15 @@ run_git_commit 3 "chore: grant Jules dev access"
 run_git 3 push
 
 as_user jules
-section "Demo only: inspect generated placeholder values"
-printf '\033[1;33m# Do not print real secrets in a terminal.\033[0m\n'
-run_gitvaulty 6 cat .env --force
-
-section "Jules inherits every dev secret, but no SRE secrets"
-run_gitvaulty 4 materialize
-run_gitvaulty 4 status
-prompt "gitvaulty cat .env.production >/dev/null"
-gitvaulty cat .env.production >/dev/null || true
+section "Jules can read dev secrets, but no SRE secrets"
+warn_demo_output
+run_gitvaulty 4 cat .env --force
+prompt "gitvaulty cat .env.production --force"
+gitvaulty cat .env.production --force || true
 sleep 3
-prompt "gitvaulty cat terraform/prod.auto.tfvars >/dev/null"
-gitvaulty cat terraform/prod.auto.tfvars >/dev/null || true
+prompt "gitvaulty cat terraform/prod.auto.tfvars --force"
+gitvaulty cat terraform/prod.auto.tfvars --force || true
 sleep 3
-run_gitvaulty 2 clean
 
 as_user sam
 section "Use SRE-only files without leaving plaintext"
@@ -217,5 +218,4 @@ gitvaulty run \
   -f terraform/prod.auto.tfvars \
   -- terraform -chdir=terraform fmt -check prod.auto.tfvars
 printf 'Terraform accepted SRE-only secrets.\n'
-sleep 3
-run_gitvaulty 4 status
+sleep 4
