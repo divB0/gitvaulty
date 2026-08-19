@@ -1,11 +1,11 @@
 import { access, mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { generateIdentity, identityToRecipient } from "age-encryption";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createIdentity } from "../src/key.js";
 import {
   addGroupMember,
+  addGroupManager,
   addUser,
   cleanSecretFiles,
   createGroup,
@@ -14,7 +14,9 @@ import {
   importSecretFile,
   initialize,
   materializeSecretFiles,
+  registerUser,
   removeGroupMember,
+  removeGroupManager,
   removeUser,
   runWithFiles,
   setFileAccess,
@@ -45,7 +47,7 @@ describe("GitVaulty hybrid native-file workflow", () => {
     repo = await findRepository(root);
     const owner = await createIdentity();
     ownerIdentity = owner.identity;
-    await initialize(repo, { username: "owner", recipient: owner.recipient });
+    await initialize(repo, { username: "owner", recipient: owner.recipient, signingKey: owner.signingKey });
   });
 
   afterEach(() => {
@@ -123,7 +125,7 @@ describe("GitVaulty hybrid native-file workflow", () => {
     await importFixtures();
     await cleanSecretFiles(repo);
     process.env.GITVAULTY_KEY = ownerIdentity;
-    process.env.SOPS_AGE_KEY = await generateIdentity();
+    process.env.SOPS_AGE_KEY = "AGE-SECRET-KEY-UNRELATED";
     const captured = path.join(root, "captured.json");
     const script = [
       "const fs=require('node:fs');",
@@ -168,8 +170,8 @@ describe("GitVaulty hybrid native-file workflow", () => {
   it("updates and rotates recipients while preserving opaque content", async () => {
     await writeFile(path.join(root, "secrets.txt"), "username=admin\npassword=secret\n");
     await importSecretFile(repo, "secrets.txt");
-    const teammateRecipient = await identityToRecipient(await generateIdentity());
-    await addUser(repo, { username: "teammate", recipient: teammateRecipient, groups: ["team"] });
+    const teammate = await createIdentity(path.join(root, "teammate.identity.txt"));
+    await addUser(repo, { username: "teammate", recipient: teammate.recipient, signingKey: teammate.signingKey, groups: ["team"] });
     expect(recipientsFor(await readRegistry(repo), "secrets.txt.gitvaulty")).toHaveLength(2);
     await removeUser(repo, "teammate");
     expect(recipientsFor(await readRegistry(repo), "secrets.txt.gitvaulty")).toHaveLength(1);
@@ -180,24 +182,23 @@ describe("GitVaulty hybrid native-file workflow", () => {
 
   it("uses groups for onboarding and re-encrypts files when membership changes", async () => {
     await createGroup(repo, "production");
-    await addGroupMember(repo, "production", "owner");
     await writeFile(path.join(root, "prod.env"), "TOKEN=production\n");
     await importSecretFile(repo, "prod.env", { groups: ["production"] });
 
-    const teammate = await generateIdentity();
-    const teammateRecipient = await identityToRecipient(teammate);
-    await addUser(repo, { username: "teammate", recipient: teammateRecipient, groups: ["production"] });
+    const teammate = await createIdentity(path.join(root, "teammate.identity.txt"));
+    const teammateRecipient = teammate.recipient;
+    await addUser(repo, { username: "teammate", recipient: teammateRecipient, signingKey: teammate.signingKey, groups: ["production"] });
     expect(recipientsFor(await readRegistry(repo), "prod.env.gitvaulty")).toEqual([
       teammateRecipient,
       (await readRegistry(repo)).users.find((user) => user.username === "owner")!.recipient,
     ].sort());
-    process.env.GITVAULTY_KEY = teammate;
+    process.env.GITVAULTY_KEY = teammate.identity;
     expect(await decryptSecretFile(repo, path.join(root, "prod.env.gitvaulty"))).toEqual(Buffer.from("TOKEN=production\n"));
     process.env.GITVAULTY_KEY = ownerIdentity;
 
     await removeGroupMember(repo, "production", "teammate");
     expect(recipientsFor(await readRegistry(repo), "prod.env.gitvaulty")).toHaveLength(1);
-    process.env.GITVAULTY_KEY = teammate;
+    process.env.GITVAULTY_KEY = teammate.identity;
     await expect(decryptSecretFile(repo, path.join(root, "prod.env.gitvaulty"))).rejects.toThrow();
     process.env.GITVAULTY_KEY = ownerIdentity;
     await expect(deleteGroup(repo, "production")).rejects.toThrow("still used by");
@@ -212,8 +213,8 @@ describe("GitVaulty hybrid native-file workflow", () => {
   it("supports direct grants and prevents policies that remove the final recipient", async () => {
     await writeFile(path.join(root, "direct.txt"), "direct secret\n");
     await importSecretFile(repo, "direct.txt");
-    const teammateRecipient = await identityToRecipient(await generateIdentity());
-    await addUser(repo, { username: "teammate", recipient: teammateRecipient, groups: ["team"] });
+    const teammate = await createIdentity(path.join(root, "teammate.identity.txt"));
+    await addUser(repo, { username: "teammate", recipient: teammate.recipient, signingKey: teammate.signingKey, groups: ["team"] });
 
     await setFileAccess(repo, "direct.txt", { groups: [], users: ["owner", "teammate"] });
     expect((await readRegistry(repo)).files[0]).toEqual({
@@ -226,5 +227,31 @@ describe("GitVaulty hybrid native-file workflow", () => {
     await expect(removeUser(repo, "owner")).rejects.toThrow("own user");
     await expect(setFileAccess(repo, "direct.txt", { groups: [], users: [] })).rejects.toThrow("at least one recipient");
     expect(await readFile(path.join(root, "direct.txt"), "utf8")).toBe("direct secret\n");
+  }, 30_000);
+
+  it("allows managers to revise membership while ordinary members remain read-only", async () => {
+    await createGroup(repo, "dev");
+    await writeFile(path.join(root, ".env.local"), "TOKEN=local\n");
+    await importSecretFile(repo, ".env.local", { groups: ["dev"] });
+    const alice = await createIdentity(path.join(root, "alice.identity.txt"));
+    const jules = await createIdentity(path.join(root, "jules.identity.txt"));
+    await addUser(repo, { username: "alice", recipient: alice.recipient, signingKey: alice.signingKey, groups: ["dev"] });
+    await registerUser(repo, { username: "jules", recipient: jules.recipient, signingKey: jules.signingKey });
+
+    process.env.GITVAULTY_KEY = alice.identity;
+    const before = await readFile(path.join(root, ".env.local.gitvaulty"));
+    await expect(addGroupMember(repo, "dev", "jules")).rejects.toThrow("alice is not a manager of dev");
+    expect(await readFile(path.join(root, ".env.local.gitvaulty"))).toEqual(before);
+
+    process.env.GITVAULTY_KEY = ownerIdentity;
+    await addGroupManager(repo, "dev", "alice");
+    process.env.GITVAULTY_KEY = alice.identity;
+    await addGroupMember(repo, "dev", "jules");
+    process.env.GITVAULTY_KEY = jules.identity;
+    expect(await decryptSecretFile(repo, path.join(root, ".env.local.gitvaulty"))).toEqual(Buffer.from("TOKEN=local\n"));
+
+    process.env.GITVAULTY_KEY = alice.identity;
+    await removeGroupManager(repo, "dev", "owner");
+    await expect(removeGroupMember(repo, "dev", "alice")).rejects.toThrow("demote the manager first");
   }, 30_000);
 });

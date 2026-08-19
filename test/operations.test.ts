@@ -2,7 +2,6 @@ import { access, mkdtemp, readFile, stat, symlink, writeFile } from "node:fs/pro
 import os from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { generateIdentity, identityToRecipient } from "age-encryption";
 
 import { importWithTrackedPrompt } from "../src/cli.js";
 import { createIdentity } from "../src/key.js";
@@ -23,6 +22,7 @@ import { executeChecked } from "../src/process.js";
 import { readRegistry, recipientsFor } from "../src/registry.js";
 import { findRepository, type Repository } from "../src/repository.js";
 import { decryptSecretFile } from "../src/sops.js";
+import { currentGroupPolicy } from "../src/group-policy.js";
 
 describe("opaque native secret files", () => {
   let root: string;
@@ -34,7 +34,7 @@ describe("opaque native secret files", () => {
     await executeChecked("git", ["init", "-q"], { cwd: root });
     repo = await findRepository(root);
     const owner = await createIdentity();
-    await initialize(repo, { username: "owner", recipient: owner.recipient });
+    await initialize(repo, { username: "owner", recipient: owner.recipient, signingKey: owner.signingKey });
   });
 
   it("maps arbitrary safe plaintext paths to opaque storage paths", () => {
@@ -60,33 +60,35 @@ describe("opaque native secret files", () => {
     const encrypted = path.join(root, "secrets", "custom.bin.gitvaulty");
     expect(await decryptSecretFile(repo, encrypted)).toEqual(Buffer.alloc(0));
     expect((await stat(encrypted)).mode & 0o777).toBe(0o600);
-    expect(await readRegistry(repo)).toMatchObject({
-      version: 3,
+    const registry = await readRegistry(repo);
+    expect(registry).toMatchObject({
+      version: 4,
       defaultGroup: "team",
       users: [{ username: "owner" }],
-      groups: [{ name: "team", members: ["owner"] }],
       files: [{ path: "secrets/custom.bin.gitvaulty", groups: ["team"], users: [] }],
     });
+    expect(currentGroupPolicy(registry.groups[0]!)).toMatchObject({ managers: ["owner"], members: [{ username: "owner" }] });
     await writeFile(path.join(root, ".env"), "TOKEN=secret\n");
     await expect(createSecretFile(repo, ".env")).rejects.toThrow("use `gitvaulty import .env`");
   });
 
   it("registers a public recipient without granting file access", async () => {
-    const recipient = await identityToRecipient(await generateIdentity());
+    const alice = await createIdentity(path.join(root, "alice.identity.txt"));
     await createSecretFile(repo, "team.env");
     const before = await readRegistry(repo);
 
-    await registerUser(repo, { username: "alice", recipient });
+    await registerUser(repo, { username: "alice", recipient: alice.recipient, signingKey: alice.signingKey });
 
     const after = await readRegistry(repo);
-    expect(after.users).toContainEqual({ username: "alice", recipient });
+    expect(after.users).toContainEqual({ username: "alice", recipient: alice.recipient, signingKey: alice.signingKey });
     expect(after.groups).toEqual(before.groups);
     expect(after.files).toEqual(before.files);
     expect(recipientsFor(after, "team.env.gitvaulty")).toEqual(recipientsFor(before, "team.env.gitvaulty"));
-    await expect(registerUser(repo, { username: "alice", recipient: await identityToRecipient(await generateIdentity()) }))
-      .rejects.toThrow("username or recipient already exists");
-    await expect(registerUser(repo, { username: "bob", recipient }))
-      .rejects.toThrow("username or recipient already exists");
+    const other = await createIdentity(path.join(root, "other.identity.txt"));
+    await expect(registerUser(repo, { username: "alice", recipient: other.recipient, signingKey: other.signingKey }))
+      .rejects.toThrow("username, recipient, or signing key already exists");
+    await expect(registerUser(repo, { username: "bob", recipient: alice.recipient, signingKey: other.signingKey }))
+      .rejects.toThrow("username, recipient, or signing key already exists");
   });
 
   it("requires the creator to belong to an explicit file policy", async () => {

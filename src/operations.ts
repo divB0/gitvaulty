@@ -13,7 +13,12 @@ import {
 import spawn from "cross-spawn";
 import type { Repository } from "./repository.js";
 import { ensureInitialized, ensureParent, findRepository } from "./repository.js";
-import { currentRecipient, readIdentity } from "./key.js";
+import { currentIdentity, currentRecipient, readIdentity } from "./key.js";
+import {
+  appendGroupPolicy,
+  createGroupPolicy,
+  currentGroupPolicy,
+} from "./group-policy.js";
 import {
   type GitVaultyUser,
   type SecretFileGrant,
@@ -98,9 +103,11 @@ function encryptedRelative(repo: Repository, plaintextFile: string): string {
 }
 
 async function registeredLocalUser(registry: Registry): Promise<GitVaultyUser> {
-  const recipient = await currentRecipient();
-  const user = registry.users.find((candidate) => candidate.recipient === recipient);
-  if (!user) throw new GitVaultyError("Your global age key is not registered. Ask an existing user to add its public recipient.");
+  const identity = await currentIdentity();
+  const user = registry.users.find((candidate) => (
+    candidate.recipient === identity.recipient && candidate.signingKey === identity.signingKey
+  ));
+  if (!user) throw new GitVaultyError("Your GitVaulty identity is not registered. Register its public identity first.");
   return user;
 }
 
@@ -145,16 +152,21 @@ async function atomicWrite(file: string, data: Buffer, mode = 0o600): Promise<vo
 
 export async function initialize(
   repo: Repository,
-  user: { username: string; recipient: string },
+  user: GitVaultyUser,
 ): Promise<void> {
   if (await isInitialized(repo)) throw new GitVaultyError("GitVaulty is already initialized.");
   const owner = normalizeGitVaultyUser(user);
+  const identity = await currentIdentity();
+  if (owner.recipient !== identity.recipient || owner.signingKey !== identity.signingKey) {
+    throw new GitVaultyError("The repository owner must match the current GitVaulty identity.");
+  }
+  const team = await createGroupPolicy("team", [owner], [owner.username], owner.username, identity.identity);
   await ensureRepositoryConfig(repo);
   await writeRegistry(repo, {
-    version: 3,
+    version: 4,
     defaultGroup: "team",
     users: [owner],
-    groups: [{ name: "team", members: [owner.username] }],
+    groups: [team],
     files: [],
   });
 }
@@ -447,15 +459,24 @@ function sameValues(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
-async function mutateAccess(repo: Repository, mutate: (registry: Registry) => void): Promise<void> {
+interface AccessMutationContext {
+  user: GitVaultyUser;
+  identity: string;
+}
+
+async function mutateAccess(
+  repo: Repository,
+  mutate: (registry: Registry, actor: AccessMutationContext) => void | Promise<void>,
+): Promise<void> {
   await ensureInitialized(repo);
   const original = await readRegistry(repo);
+  const local = await registeredLocalUser(original);
+  const identity = await readIdentity();
   const next = structuredClone(original);
-  mutate(next);
+  await mutate(next, { user: local, identity });
   const normalized = normalizeRegistry(next);
   const paths = [...new Set([...original.files.map((file) => file.path), ...normalized.files.map((file) => file.path)])].sort();
   const changed = paths.filter((file) => !sameValues(recipientsFor(original, file), recipientsFor(normalized, file)));
-  const local = await registeredLocalUser(original);
   if (!normalized.users.some((user) => user.recipient === local.recipient)) {
     throw new GitVaultyError("You cannot remove your own user.");
   }
@@ -489,8 +510,12 @@ export async function registerUser(repo: Repository, user: GitVaultyUser): Promi
   await ensureInitialized(repo);
   const registry = await readRegistry(repo);
   const registered = normalizeGitVaultyUser(user);
-  if (registry.users.some((item) => item.username === registered.username || item.recipient === registered.recipient)) {
-    throw new GitVaultyError("That username or recipient already exists.");
+  if (registry.users.some((item) => (
+    item.username === registered.username
+    || item.recipient === registered.recipient
+    || item.signingKey === registered.signingKey
+  ))) {
+    throw new GitVaultyError("That username, recipient, or signing key already exists.");
   }
   registry.users.push(registered);
   await writeRegistry(repo, registry);
@@ -498,14 +523,18 @@ export async function registerUser(repo: Repository, user: GitVaultyUser): Promi
 
 export async function addUser(repo: Repository, user: NewUser): Promise<void> {
   const added = normalizeGitVaultyUser(user);
-  await mutateAccess(repo, (registry) => {
-    if (registry.users.some((item) => item.username === added.username || item.recipient === added.recipient)) {
-      throw new GitVaultyError("That username or recipient already exists.");
+  await mutateAccess(repo, async (registry, actor) => {
+    if (registry.users.some((item) => (
+      item.username === added.username
+      || item.recipient === added.recipient
+      || item.signingKey === added.signingKey
+    ))) {
+      throw new GitVaultyError("That username, recipient, or signing key already exists.");
     }
     const groups = (user.groups?.length ? user.groups : [registry.defaultGroup]).map(normalizeGroupName);
     for (const name of groups) if (!registry.groups.some((group) => group.name === name)) throw new GitVaultyError(`Unknown group: ${name}`);
     registry.users.push(added);
-    for (const group of registry.groups) if (groups.includes(group.name)) group.members.push(added.username);
+    for (const name of groups) await appendMemberRevision(registry, name, added, actor);
   });
 }
 
@@ -515,26 +544,87 @@ export async function removeUser(repo: Repository, username: string): Promise<vo
   const removed = existing.users.find((user) => user.username === normalized);
   if (!removed) throw new GitVaultyError(`Unknown user: ${normalized}`);
   if (removed.recipient === await currentRecipient()) throw new GitVaultyError("You cannot remove your own user.");
-  await mutateAccess(repo, (registry) => {
+  await mutateAccess(repo, async (registry, actor) => {
+    for (const group of registry.groups) {
+      const policy = currentGroupPolicy(group);
+      if (!policy.members.some((member) => member.username === normalized)) continue;
+      if (policy.managers.includes(normalized)) throw new GitVaultyError(`${normalized} manages ${group.name}; demote the manager first.`);
+      await replaceGroupRevision(
+        registry,
+        group.name,
+        policy.members.filter((member) => member.username !== normalized),
+        policy.managers,
+        actor,
+      );
+    }
     registry.users = registry.users.filter((item) => item.username !== normalized);
-    for (const group of registry.groups) group.members = group.members.filter((member) => member !== normalized);
     for (const file of registry.files) file.users = file.users.filter((member) => member !== normalized);
   });
 }
 
+function groupFor(registry: Registry, name: string) {
+  const group = registry.groups.find((candidate) => candidate.name === name);
+  if (!group) throw new GitVaultyError(`Unknown group: ${name}`);
+  return group;
+}
+
+function assertManager(groupName: string, actor: GitVaultyUser, registry: Registry): void {
+  if (!currentGroupPolicy(groupFor(registry, groupName)).managers.includes(actor.username)) {
+    throw new GitVaultyError(`${actor.username} is not a manager of ${groupName}.`);
+  }
+}
+
+async function replaceGroupRevision(
+  registry: Registry,
+  groupName: string,
+  members: GitVaultyUser[],
+  managers: string[],
+  actor: AccessMutationContext,
+): Promise<void> {
+  const index = registry.groups.findIndex((candidate) => candidate.name === groupName);
+  if (index < 0) throw new GitVaultyError(`Unknown group: ${groupName}`);
+  assertManager(groupName, actor.user, registry);
+  registry.groups[index] = await appendGroupPolicy(
+    registry.groups[index]!,
+    members,
+    managers,
+    actor.user.username,
+    actor.identity,
+  );
+}
+
+async function appendMemberRevision(
+  registry: Registry,
+  groupName: string,
+  member: GitVaultyUser,
+  actor: AccessMutationContext,
+): Promise<void> {
+  const policy = currentGroupPolicy(groupFor(registry, groupName));
+  if (policy.members.some((candidate) => candidate.username === member.username)) {
+    throw new GitVaultyError(`${member.username} is already in ${groupName}.`);
+  }
+  await replaceGroupRevision(registry, groupName, [...policy.members, member], policy.managers, actor);
+}
+
 export async function createGroup(repo: Repository, name: string): Promise<void> {
   const normalized = normalizeGroupName(name);
-  await mutateAccess(repo, (registry) => {
+  await mutateAccess(repo, async (registry, actor) => {
     if (registry.groups.some((group) => group.name === normalized)) throw new GitVaultyError(`Group already exists: ${normalized}`);
-    registry.groups.push({ name: normalized, members: [] });
+    registry.groups.push(await createGroupPolicy(
+      normalized,
+      [actor.user],
+      [actor.user.username],
+      actor.user.username,
+      actor.identity,
+    ));
   });
 }
 
 export async function deleteGroup(repo: Repository, name: string): Promise<void> {
   const normalized = normalizeGroupName(name);
-  await mutateAccess(repo, (registry) => {
+  await mutateAccess(repo, (registry, actor) => {
     if (registry.defaultGroup === normalized) throw new GitVaultyError(`Cannot delete the default group: ${normalized}`);
-    if (!registry.groups.some((group) => group.name === normalized)) throw new GitVaultyError(`Unknown group: ${normalized}`);
+    assertManager(normalized, actor.user, registry);
     const usedBy = registry.files.filter((file) => file.groups.includes(normalized)).map((file) => file.path);
     if (usedBy.length > 0) throw new GitVaultyError(`Group ${normalized} is still used by: ${usedBy.join(", ")}`);
     registry.groups = registry.groups.filter((group) => group.name !== normalized);
@@ -544,23 +634,55 @@ export async function deleteGroup(repo: Repository, name: string): Promise<void>
 export async function addGroupMember(repo: Repository, name: string, username: string): Promise<void> {
   const groupName = normalizeGroupName(name);
   const member = normalizeUsername(username);
-  await mutateAccess(repo, (registry) => {
-    const group = registry.groups.find((candidate) => candidate.name === groupName);
-    if (!group) throw new GitVaultyError(`Unknown group: ${groupName}`);
-    if (!registry.users.some((user) => user.username === member)) throw new GitVaultyError(`Unknown user: ${member}`);
-    if (group.members.includes(member)) throw new GitVaultyError(`${member} is already in ${groupName}.`);
-    group.members.push(member);
+  await mutateAccess(repo, async (registry, actor) => {
+    const added = registry.users.find((user) => user.username === member);
+    if (!added) throw new GitVaultyError(`Unknown user: ${member}`);
+    await appendMemberRevision(registry, groupName, added, actor);
   });
 }
 
 export async function removeGroupMember(repo: Repository, name: string, username: string): Promise<void> {
   const groupName = normalizeGroupName(name);
   const member = normalizeUsername(username);
-  await mutateAccess(repo, (registry) => {
-    const group = registry.groups.find((candidate) => candidate.name === groupName);
-    if (!group) throw new GitVaultyError(`Unknown group: ${groupName}`);
-    if (!group.members.includes(member)) throw new GitVaultyError(`${member} is not in ${groupName}.`);
-    group.members = group.members.filter((candidate) => candidate !== member);
+  await mutateAccess(repo, async (registry, actor) => {
+    const policy = currentGroupPolicy(groupFor(registry, groupName));
+    if (!policy.members.some((candidate) => candidate.username === member)) throw new GitVaultyError(`${member} is not in ${groupName}.`);
+    if (policy.managers.includes(member)) throw new GitVaultyError(`${member} manages ${groupName}; demote the manager first.`);
+    await replaceGroupRevision(
+      registry,
+      groupName,
+      policy.members.filter((candidate) => candidate.username !== member),
+      policy.managers,
+      actor,
+    );
+  });
+}
+
+export async function addGroupManager(repo: Repository, name: string, username: string): Promise<void> {
+  const groupName = normalizeGroupName(name);
+  const manager = normalizeUsername(username);
+  await mutateAccess(repo, async (registry, actor) => {
+    const policy = currentGroupPolicy(groupFor(registry, groupName));
+    if (!policy.members.some((member) => member.username === manager)) throw new GitVaultyError(`${manager} is not a member of ${groupName}.`);
+    if (policy.managers.includes(manager)) throw new GitVaultyError(`${manager} already manages ${groupName}.`);
+    await replaceGroupRevision(registry, groupName, policy.members, [...policy.managers, manager], actor);
+  });
+}
+
+export async function removeGroupManager(repo: Repository, name: string, username: string): Promise<void> {
+  const groupName = normalizeGroupName(name);
+  const manager = normalizeUsername(username);
+  await mutateAccess(repo, async (registry, actor) => {
+    const policy = currentGroupPolicy(groupFor(registry, groupName));
+    if (!policy.managers.includes(manager)) throw new GitVaultyError(`${manager} does not manage ${groupName}.`);
+    if (policy.managers.length === 1) throw new GitVaultyError(`${groupName} needs at least one manager.`);
+    await replaceGroupRevision(
+      registry,
+      groupName,
+      policy.members,
+      policy.managers.filter((candidate) => candidate !== manager),
+      actor,
+    );
   });
 }
 
