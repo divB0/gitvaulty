@@ -177,6 +177,82 @@ describe("GitVaulty CLI option callbacks", () => {
     });
   });
 
+  it("registers a username supplied through the preferred option", async () => {
+    await createProgram({ interactive: false }).parseAsync([
+      "node", "gitvaulty", "user", "register", "--username", "Alice",
+    ]);
+
+    expect(promptMocks.input).not.toHaveBeenCalled();
+    expect(operationMocks.registerUser).toHaveBeenCalledWith(repository, {
+      username: "alice",
+      recipient: "age1owner",
+      signingKey: "ed25519:owner",
+    });
+  });
+
+  it("prompts with the normalized system username as the default", async () => {
+    promptMocks.input.mockResolvedValueOnce("System_User");
+
+    await createProgram({ interactive: true, environment: { USER: "System_User" } }).parseAsync([
+      "node", "gitvaulty", "user", "register",
+    ]);
+
+    expect(promptMocks.input).toHaveBeenCalledWith(expect.objectContaining({
+      message: "Username",
+      default: "system_user",
+    }), expect.objectContaining({ output: process.stderr }));
+    expect(operationMocks.registerUser).toHaveBeenCalledWith(repository, {
+      username: "system_user",
+      recipient: "age1owner",
+      signingKey: "ed25519:owner",
+    });
+  });
+
+  it("registers a different username typed at the prompt", async () => {
+    promptMocks.input.mockResolvedValueOnce("Another.User");
+
+    await createProgram({ interactive: true, environment: { USER: "system-user" } }).parseAsync([
+      "node", "gitvaulty", "user", "register",
+    ]);
+
+    expect(operationMocks.registerUser).toHaveBeenCalledWith(repository, {
+      username: "another.user",
+      recipient: "age1owner",
+      signingKey: "ed25519:owner",
+    });
+  });
+
+  it("uses the Windows username fallback when USER is invalid", async () => {
+    promptMocks.input.mockResolvedValueOnce("Windows_User");
+
+    await createProgram({
+      interactive: true,
+      environment: { USER: "Not A Valid Username", USERNAME: "Windows_User" },
+    }).parseAsync(["node", "gitvaulty", "user", "register"]);
+
+    expect(promptMocks.input).toHaveBeenCalledWith(expect.objectContaining({
+      default: "windows_user",
+    }), expect.anything());
+  });
+
+  it("rejects ambiguous registration usernames", async () => {
+    await expect(createProgram({ interactive: true }).parseAsync([
+      "node", "gitvaulty", "user", "register", "alice", "--username", "bob",
+    ])).rejects.toThrow("Choose either the positional username or --username, not both");
+
+    expect(promptMocks.input).not.toHaveBeenCalled();
+    expect(operationMocks.registerUser).not.toHaveBeenCalled();
+  });
+
+  it("requires --username when registration is non-interactive", async () => {
+    await expect(createProgram({ interactive: false }).parseAsync([
+      "node", "gitvaulty", "user", "register",
+    ])).rejects.toThrow("Pass --username <username>");
+
+    expect(promptMocks.input).not.toHaveBeenCalled();
+    expect(operationMocks.registerUser).not.toHaveBeenCalled();
+  });
+
   it("routes manager promotions and demotions through signed group operations", async () => {
     await createProgram().parseAsync(["node", "gitvaulty", "group", "manager", "add", "dev", "alice"]);
     expect(operationMocks.addGroupManager).toHaveBeenCalledWith(repository, "dev", "alice");
@@ -200,6 +276,23 @@ describe("GitVaulty CLI option callbacks", () => {
     });
     expect(operationMocks.registerUser).not.toHaveBeenCalled();
     expect(process.stdout.write).toHaveBeenCalledWith(expect.stringContaining("alice as repository owner in team"));
+  });
+
+  it("uses one prompted registration name when that command initializes the repository", async () => {
+    operationMocks.isInitialized.mockResolvedValueOnce(false);
+    promptMocks.input.mockResolvedValueOnce("Alice");
+
+    await createProgram({ interactive: true, environment: { USER: "Alice" } }).parseAsync([
+      "node", "gitvaulty", "user", "register",
+    ]);
+
+    expect(promptMocks.input).toHaveBeenCalledOnce();
+    expect(operationMocks.initialize).toHaveBeenCalledWith(repository, {
+      username: "alice",
+      recipient: "age1owner",
+      signingKey: "ed25519:owner",
+    });
+    expect(operationMocks.registerUser).not.toHaveBeenCalled();
   });
 
   it("makes explicit initialization idempotent through the shared bootstrap", async () => {

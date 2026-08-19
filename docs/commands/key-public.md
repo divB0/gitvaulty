@@ -18,7 +18,7 @@ Signing key: ed25519:example...
 The age recipient allows others to encrypt files for you. The Ed25519 key lets repositories verify policy signatures made while you were a manager. Neither public key can decrypt, sign, or reveal the master identity.
 
 When joining an existing GitVaulty repository, prefer
-[`gitvaulty user register <username>`](user-register.md). It derives the same public identity and
+[`gitvaulty user register`](user-register.md). It derives the same public identity and
 adds it to the repository with no access so a group manager can review and approve a group grant.
 
 If no identity is available interactively, GitVaulty offers to restore an existing backup through

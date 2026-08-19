@@ -5,19 +5,26 @@ Register your public encryption and signing keys without granting yourself acces
 ## Usage
 
 ```sh
-npx gitvaulty user register <username>
+npx gitvaulty user register [--username <username>]
 ```
 
-Example:
+Without `--username`, GitVaulty asks for the repository username. The normalized system `$USER` is
+selected by default, with `%USERNAME%` used as the Windows fallback. Press Enter to accept it or type
+a different username.
+
+For non-interactive use, pass the username explicitly:
 
 ```sh
-npx gitvaulty user register alice
+npx gitvaulty user register --username alice
 ```
 
-The username is normalized to lowercase and must use letters, numbers, `.`, `_`, or `-`. GitVaulty
-loads your global master identity and derives its public `age1...` recipient and `ed25519:...`
-verification key. If no identity exists, it offers masked restoration from a backup or creation of
-a new key. The private `GITVAULTY-IDENTITY-...` value is never written to the repository.
+The older positional form, `gitvaulty user register alice`, remains accepted for compatibility.
+Supplying both the positional form and `--username` is an error.
+
+The chosen username is normalized to lowercase and must use letters, numbers, `.`, `_`, or `-`.
+GitVaulty loads your global master identity and derives its public `age1...` recipient and
+`ed25519:...` verification key. If no identity exists, it offers masked restoration from a backup or
+creation of a new key. The private `GITVAULTY-IDENTITY-...` value is never written to the repository.
 
 ## What it changes
 
@@ -26,7 +33,7 @@ memberships and no direct file grants. Existing groups, file policies, effective
 ciphertext remain unchanged. The username and both public keys must be unique.
 
 The command prepares the repository automatically when needed and does not require access to any
-encrypted file. In a new repository, its `<username>` becomes the repository owner in the default
+encrypted file. In a new repository, the chosen username becomes the repository owner in the default
 `team` group instead of adding a duplicate registration. It does not stage or commit the registry
 change.
 

@@ -50,7 +50,7 @@ as_user() {
       ;;
   esac
 
-  export DEMO_USER GITVAULTY_AGE_KEY_FILE="$DEMO_KEYS/$DEMO_USER.txt"
+  export DEMO_USER USER="$DEMO_USER" GITVAULTY_AGE_KEY_FILE="$DEMO_KEYS/$DEMO_USER.txt"
   git config user.name "$DEMO_NAME"
   git config user.email "$DEMO_USER@example.com"
 }
@@ -108,7 +108,7 @@ publish_registration() {
 
   section "Self-register a public key on an onboarding branch"
   run_git 2 switch -c "onboard/$username"
-  run_gitvaulty 3 user register "$username"
+  run_gitvaulty 3 user register
   run_git 1 add .gitvaulty/recipients.json
   run_git_commit 3 "chore: register $display_name"
   run_git 3 push -u origin "onboard/$username"

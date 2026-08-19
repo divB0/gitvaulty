@@ -88,6 +88,10 @@ describe("GitVaulty CLI", () => {
     expect(command("key")?.commands.find((item) => item.name() === "backup")?.options.map((option) => option.long))
       .toEqual(["--clipboard", "--print"]);
     expect(command("user")?.commands.map((item) => item.name())).toEqual(["register", "add", "list", "remove"]);
+    const register = command("user")?.commands.find((item) => item.name() === "register");
+    expect(register?.options.map((option) => option.long))
+      .toEqual(["--username"]);
+    expect(register?.usage()).toBe("[options]");
     expect(command("group")?.commands.map((item) => item.name())).toEqual(["create", "add", "remove", "manager", "list", "delete"]);
     expect(command("group")?.commands.find((item) => item.name() === "manager")?.commands.map((item) => item.name())).toEqual(["add", "remove"]);
   });

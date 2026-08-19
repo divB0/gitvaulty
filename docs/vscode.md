@@ -30,7 +30,7 @@ identity's public recipient without access:
 ```sh
 npx gitvaulty key restore
 # Or register a new identity on your branch:
-npx gitvaulty user register alice
+npx gitvaulty user register
 ```
 
 Commit `.gitvaulty/recipients.json` for review. An existing authorized developer can then run
@@ -112,7 +112,7 @@ npx gitvaulty user list
 
 If this machine does not have your identity, restore its private backup with
 `npx gitvaulty key restore`. If your public recipient is absent from the repository, ask an existing
-member to review a `npx gitvaulty user register <username>` commit and grant the appropriate group.
+member to review a `npx gitvaulty user register` commit and grant the appropriate group.
 
 ### The encrypted file changed while editing
 

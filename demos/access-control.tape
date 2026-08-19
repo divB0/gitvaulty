@@ -71,5 +71,16 @@ Type@0ms 'bash "$DEMO_SCRIPT"'
 Enter
 Wait+Screen@30s /Create sre and review both signed access groups/
 Show
+Wait+Screen@120s /Username/
+Sleep 2s
+Enter
+Wait+Screen@120s /# User: Sam/
+Wait+Screen@120s /Username/
+Sleep 2s
+Enter
+Wait+Screen@120s /# User: Jules/
+Wait+Screen@120s /Username/
+Sleep 2s
+Enter
 Wait+Screen@600s /Demo complete/
 Sleep 4s

@@ -19,7 +19,7 @@ The command uses `GITVAULTY_AGE_KEY_FILE` or `SOPS_AGE_KEY_FILE` when configured
 This command does not initialize a repository or add either public key to an existing repository.
 Any repository command initializes a new repository automatically; use [`gitvaulty init`](init.md)
 to prepare it explicitly, or run
-[`gitvaulty user register <username>`](user-register.md) to commit the public identity to an
+[`gitvaulty user register`](user-register.md) to commit the public identity to an
 existing repository without granting access.
 
 ## Related commands

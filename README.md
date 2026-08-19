@@ -102,13 +102,15 @@ to `disabled` before maintaining custom skill instructions.
 On their own branch, the new developer registers their public identity without receiving access:
 
 ```sh
-npx gitvaulty user register alice
+npx gitvaulty user register
 git add .gitvaulty/recipients.json
 git commit -m "chore: register alice's GitVaulty key"
 ```
 
-The command creates one private GitVaulty master identity when needed, but commits only its public
-age recipient and Ed25519 verification key. Alice opens a pull request with that commit. Her private
+The command prompts for the repository username, defaults to the current system `$USER`, and lets
+the developer accept or replace it. For automation, pass `--username alice`. It creates one private
+GitVaulty master identity when needed, but commits only its public age recipient and Ed25519
+verification key. Alice opens a pull request with that commit. Her private
 `GITVAULTY-IDENTITY-...` backup must never be shared or committed.
 
 After reviewing Alice's registration, a manager of the default group checks out the commit and adds
@@ -438,7 +440,7 @@ npx gitvaulty key create
 npx gitvaulty key public
 npx gitvaulty key backup
 npx gitvaulty key restore
-npx gitvaulty user register alice
+npx gitvaulty user register
 npx gitvaulty user add
 npx gitvaulty user list
 npx gitvaulty user remove
@@ -468,8 +470,9 @@ npx gitvaulty key backup --print
 `--clipboard` and `--print` are mutually exclusive. Clipboard history and synchronization tools may
 retain copied keys; direct password-manager storage is preferred.
 
-A new developer runs `gitvaulty user register <username>` and commits both public keys with no
-access. An existing group manager reviews that commit and runs
+A new developer runs `gitvaulty user register`, confirms the suggested system username, and commits
+both public keys with no access. Scripts can use `gitvaulty user register --username <username>`.
+An existing group manager reviews that commit and runs
 `gitvaulty group add <group> <username>` to approve access. `user add` remains available as an
 interactive shortcut when a manager already has someone else's public identity.
 Private keys are never shared.

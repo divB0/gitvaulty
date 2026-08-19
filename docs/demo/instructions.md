@@ -85,15 +85,16 @@ Keep these scenes in this order so the animation tells one continuous access-con
    and `sre`, then commit and push the repository bootstrap files and signed group configuration.
 3. As Admin, create local `.env` for `dev` and `sre`, create `.env.production` for `sre`, and create
    `terraform/prod.auto.tfvars` for `sre`. Commit and push the encrypted files and policy metadata.
-4. As Alice, create and push `onboard/alice` containing only `gitvaulty user register alice` and its
-   public registration commit.
+4. As Alice, create and push `onboard/alice`. Run `gitvaulty user register` and accept the `alice`
+   system-username default, then create and push the public registration commit.
 5. As Admin, pull `main`, merge Alice's reviewed registration, grant `dev`, then commit and push the
    access change. Switch to Alice and use `gitvaulty cat .env --force` to show that the single group
    grant unlocks the existing `dev` file.
 6. Repeat the registration, review, merge, grant, commit, and push flow for Sam and `sre`. Switch to
    Sam and use `gitvaulty cat ... --force` to show that the group grant unlocks every existing `sre`
    file: local `.env`, production `.env`, and the Terraform secrets.
-7. As Jules, create and push `onboard/jules` containing the public self-registration.
+7. As Jules, create and push `onboard/jules`, run `gitvaulty user register`, accept the `jules`
+   system-username default, and push the public self-registration commit.
 8. As Admin, merge Jules's reviewed registration. As Alice, show that an ordinary `dev` member cannot
    add Jules. Return to Admin, sign the `dev` membership revision, then commit and push it.
 9. As Jules, use `gitvaulty cat .env --force` to show that the `dev` grant unlocks the local `.env`.
@@ -125,6 +126,8 @@ details out of the visible recording.
   interactive answers should appear as typed input.
 - Show the real Git boundary: onboarding branch, registration commit, push, Admin pull/merge, group
   grant commit, and push. Do not imply that self-registration grants access.
+- For Alice, Sam, and Jules, show `gitvaulty user register` without an argument and pause on the
+  username prompt before accepting the active persona's system-username default.
 - Use content-weighted pauses. Short success messages need about two seconds; created-file results
   need about three; group listings and decrypted dummy values need about four.
 - Clear between scenes so each section has one readable purpose and long commands do not crowd later
@@ -140,6 +143,8 @@ After generation, play the GIF from beginning to end and confirm:
 - `dev` and `sre` managers and membership are visible;
 - only Admin, Alice, Sam, and Jules appear, and every screen has the correct persona header;
 - onboarding registrations are committed and pushed before Admin merges and grants access;
+- Alice, Sam, and Jules each register through the interactive username prompt, whose default matches
+  the active persona;
 - immediately after Alice and Sam receive group access, `gitvaulty cat` succeeds for every existing
   file assigned to that group;
 - Alice's rejected membership change is readable before Admin's signed grant;

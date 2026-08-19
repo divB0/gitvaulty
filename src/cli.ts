@@ -167,6 +167,40 @@ async function bootstrapUsername(repo: Repository, interactive: boolean): Promis
   }, { output: process.stderr }));
 }
 
+function systemUsername(environment: NodeJS.ProcessEnv): string {
+  for (const value of [environment.USER, environment.USERNAME]) {
+    if (!value) continue;
+    try { return normalizeUsername(value); }
+    catch { /* prompt without an invalid default */ }
+  }
+  return "";
+}
+
+async function registrationUsername(
+  positional: string | undefined,
+  option: string | undefined,
+  interactive: boolean,
+  environment: NodeJS.ProcessEnv,
+): Promise<string> {
+  if (positional && option) {
+    throw new GitVaultyError("Choose either the positional username or --username, not both.");
+  }
+  const explicit = option ?? positional;
+  if (explicit) return normalizeUsername(explicit);
+  if (!interactive) {
+    throw new GitVaultyError("A username is required. Pass --username <username>.");
+  }
+  const suggested = systemUsername(environment);
+  return normalizeUsername(await input({
+    message: "Username",
+    ...(suggested ? { default: suggested } : {}),
+    validate: (value) => {
+      try { normalizeUsername(value); return true; }
+      catch (error) { return (error as Error).message; }
+    },
+  }, { output: process.stderr }));
+}
+
 function collect(value: string, previous: string[]): string[] { return [...previous, value]; }
 
 function addAccessOptions(command: Command): Command {
@@ -242,11 +276,13 @@ export async function importWithTrackedPrompt(
 
 export function createProgram(options: {
   agentSkillPreflight?: (repo: Repository) => Promise<void>;
+  environment?: NodeJS.ProcessEnv;
   interactive?: boolean;
   keyBackup?: (options: KeyBackupOptions) => Promise<void>;
 } = {}): Command {
   const program = new Command().name("gitvaulty").description("Git-backed secrets for humans.").version(packageVersion).enablePositionalOptions();
   const agentSkillPreflight = options.agentSkillPreflight ?? ensureRepositoryAgentSkill;
+  const environment = options.environment ?? process.env;
   const interactive = options.interactive ?? Boolean(process.stdin.isTTY && process.stderr.isTTY);
   const keyBackup = options.keyBackup ?? backupKey;
   const prepareRepository = async (initialUsername?: string): Promise<{ repo: Repository; initialized: boolean }> => {
@@ -436,22 +472,31 @@ export function createProgram(options: {
   });
 
   const user = program.command("user").description("Manage users");
-  user.command("register <username>").description("Register your public recipient without granting access").action(async (username: string) => {
-    const normalizedUsername = normalizeUsername(username);
-    const prepared = await prepareRepository(normalizedUsername);
-    const { repo } = prepared;
-    if (prepared.initialized) {
-      process.stdout.write(`Registered ${normalizedUsername} as repository owner in team. Commit .gitvaulty/recipients.json for review.\n`);
-      return;
-    }
-    const identity = await currentIdentity();
-    await registerUser(repo, {
-      username: normalizedUsername,
-      recipient: identity.recipient,
-      signingKey: identity.signingKey,
+  user.command("register [username]")
+    .description("Register your public recipient without granting access")
+    .usage("[options]")
+    .option("-u, --username <username>", "repository username; prompts when omitted")
+    .action(async (username: string | undefined, commandOptions: { username?: string }) => {
+      const normalizedUsername = await registrationUsername(
+        username,
+        commandOptions.username,
+        interactive,
+        environment,
+      );
+      const prepared = await prepareRepository(normalizedUsername);
+      const { repo } = prepared;
+      if (prepared.initialized) {
+        process.stdout.write(`Registered ${normalizedUsername} as repository owner in team. Commit .gitvaulty/recipients.json for review.\n`);
+        return;
+      }
+      const identity = await currentIdentity();
+      await registerUser(repo, {
+        username: normalizedUsername,
+        recipient: identity.recipient,
+        signingKey: identity.signingKey,
+      });
+      process.stdout.write(`Registered ${normalizedUsername} with no access. Commit .gitvaulty/recipients.json for review.\n`);
     });
-    process.stdout.write(`Registered ${normalizedUsername} with no access. Commit .gitvaulty/recipients.json for review.\n`);
-  });
   user.command("add").description("Add a user to groups").action(async () => {
     const repo = await preparedRepository();
     const registry = await readRegistry(repo);
