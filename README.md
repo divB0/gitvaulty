@@ -22,13 +22,16 @@ person keeps one private GitVaulty master identity; there is no shared team decr
 GitVaulty is available on [npm](https://www.npmjs.com/package/gitvaulty) and requires Node.js 20 or
 newer.
 
+![GitVaulty terminal demo showing direct decryption without stored plaintext followed by group-based access control](demos/access-control.gif)
+
+*A real CLI walkthrough from encrypted-file basics to group-based access control.*
+
 ## Contents
 
 1. [Getting started](#getting-started)
    1. [Quick start](#quick-start)
    2. [Add a new developer](#add-a-new-developer)
-   3. [Demo](#demo)
-   4. [Install in a project](#install-in-a-project)
+   3. [Install in a project](#install-in-a-project)
 2. [Working with encrypted files](#working-with-encrypted-files)
    1. [Common workflows](#common-workflows)
    2. [Migrate an existing file](#migrate-an-existing-file)
@@ -127,22 +130,6 @@ git commit -m "chore: grant alice team access"
 updated group. Alice can decrypt those files after the access commit is merged and pulled. The
 public-key commit and access-grant commit are separate so a current manager explicitly approves
 access.
-
-### Demo
-
-This real CLI walkthrough has two chapters:
-
-1. **First secret:** create and directly decrypt one encrypted `.env`, then prove no plaintext file
-   was stored.
-2. **Access control:** create manager-controlled `dev` and `sre` groups, assign the local `.env` to
-   both groups, restrict production and Terraform secrets to SREs, and add a developer who can
-   decrypt only the local `.env`.
-
-![GitVaulty terminal demo showing direct decryption without stored plaintext followed by group-based access control](demos/access-control.gif)
-
-The demo is reproducible from the checked-in [VHS tape](demos/access-control.tape) and
-[synchronous demo driver](demos/access-control-demo.sh). No private identity or plaintext secret is
-committed.
 
 ### Install in a project
 
