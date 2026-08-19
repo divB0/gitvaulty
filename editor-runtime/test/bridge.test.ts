@@ -20,6 +20,15 @@ function core(overrides: Partial<EditorRuntimeCore> = {}): EditorRuntimeCore {
 }
 
 describe("editor runtime bridge", () => {
+  it("reports the packaged runtime version", async () => {
+    const response = await handleRequest({ id: "ping-1", protocolVersion: 1, method: "ping", params: {} }, core());
+    expect(response).toEqual({
+      id: "ping-1",
+      ok: true,
+      result: { protocolVersion: 1, runtimeVersion: "0.1.1" },
+    });
+  });
+
   it("opens text as base64 and never changes the request id", async () => {
     const result = await handleRequest({ id: "open-1", protocolVersion: 1, method: "open", params: { sourcePath } }, core());
     expect(result).toEqual({

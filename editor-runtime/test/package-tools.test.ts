@@ -34,17 +34,17 @@ describe("runtime packaging", () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "gitvaulty-runtime-manifest-"));
     const targets = ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"];
     for (const target of targets) {
-      await writeFile(path.join(directory, `gitvaulty-editor-runtime-v0.1.0-${target}.zip`), Buffer.from(target));
+      await writeFile(path.join(directory, `gitvaulty-editor-runtime-v0.1.1-${target}.zip`), Buffer.from(target));
     }
 
-    const manifest = await createRuntimeManifest(directory, "jetbrains-v0.1.0", "https://github.com/divB0/gitvaulty");
-    expect(manifest).toMatchObject({ protocolVersion: 1, runtimeVersion: "0.1.0" });
+    const manifest = await createRuntimeManifest(directory, "jetbrains-v0.1.1", "https://github.com/divB0/gitvaulty");
+    expect(manifest).toMatchObject({ protocolVersion: 1, runtimeVersion: "0.1.1" });
     expect(manifest.assets.map((asset: { target: string }) => asset.target)).toEqual(targets);
     expect(manifest.assets[0]).toMatchObject({
       target: "darwin-arm64",
-      filename: "gitvaulty-editor-runtime-v0.1.0-darwin-arm64.zip",
+      filename: "gitvaulty-editor-runtime-v0.1.1-darwin-arm64.zip",
       size: Buffer.byteLength("darwin-arm64"),
-      url: "https://github.com/divB0/gitvaulty/releases/download/jetbrains-v0.1.0/gitvaulty-editor-runtime-v0.1.0-darwin-arm64.zip",
+      url: "https://github.com/divB0/gitvaulty/releases/download/jetbrains-v0.1.1/gitvaulty-editor-runtime-v0.1.1-darwin-arm64.zip",
     });
     expect(manifest.assets[0].sha256).toMatch(/^[a-f0-9]{64}$/);
 

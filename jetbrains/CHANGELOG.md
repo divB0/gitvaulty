@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Refresh the signed native runtime and verify automated Marketplace updates.
+
 ## 0.1.0
 
 - Open authorized `*.gitvaulty` files in the native JetBrains text editor.
