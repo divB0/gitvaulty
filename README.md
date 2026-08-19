@@ -130,11 +130,15 @@ access.
 
 ### Demo
 
-This real CLI walkthrough creates manager-controlled `dev` and `sre` groups, encrypts a local `.env` for both groups,
-restricts the production `.env` and Terraform secrets to SREs, and then adds a new developer who can
-decrypt only the local `.env`.
+This real CLI walkthrough has two chapters:
 
-![GitVaulty terminal demo showing group-based development, production, and Terraform secret access](demos/access-control.gif)
+1. **First secret:** create and directly decrypt one encrypted `.env`, then prove no plaintext file
+   was stored.
+2. **Access control:** create manager-controlled `dev` and `sre` groups, assign the local `.env` to
+   both groups, restrict production and Terraform secrets to SREs, and add a developer who can
+   decrypt only the local `.env`.
+
+![GitVaulty terminal demo showing direct decryption without stored plaintext followed by group-based access control](demos/access-control.gif)
 
 The demo is reproducible from the checked-in [VHS tape](demos/access-control.tape) and
 [synchronous demo driver](demos/access-control-demo.sh). No private identity or plaintext secret is

@@ -54,22 +54,22 @@ Sleep 500ms
 Show
 Sleep 1s
 
-Type@0ms "# First command bootstraps GitVaulty automatically"
+Type@0ms "# Demo 1: create and decrypt one encrypted file"
 Enter
 Sleep 1s
-Type "gitvaulty group create dev"
+Type "gitvaulty create .env"
 Enter
 Wait+Screen@30s /Your username/
 Type "admin"
 Enter
 Wait+Screen@30s /GitVaulty initialized/
 Wait+Screen@30s /Installed agent skill/
-Wait+Screen@30s /Created group dev/
+Wait+Screen@30s /Created .env.gitvaulty/
 Sleep 3s
 Hide
 Type@0ms 'bash "$DEMO_SCRIPT"'
 Enter
-Wait+Screen@30s /Create sre and review both signed access groups/
+Wait+Screen@30s /Demo 1: decrypt without storing plaintext/
 Show
 Wait+Screen@120s /Username/
 Sleep 2s

@@ -143,7 +143,16 @@ review_and_grant() {
 }
 
 as_user admin
-section "Create sre and review both signed access groups"
+section "Demo 1: decrypt without storing plaintext"
+warn_demo_output
+run_gitvaulty 4 cat .env --force
+prompt "test ! -e .env"
+test ! -e .env
+printf '\033[1;32m✓ No plaintext .env is stored.\033[0m\n'
+sleep 4
+
+section "Demo 2: create signed dev and sre groups"
+run_gitvaulty 2 group create dev
 run_gitvaulty 2 group create sre
 run_gitvaulty 4 group list
 run_git 1 add -A
@@ -152,7 +161,7 @@ run_git 3 push -u origin main
 
 as_user admin
 section "Local .env: dev + sre only"
-run_gitvaulty 3 create .env --group dev --group sre
+run_gitvaulty 3 access .env --group dev --group sre
 
 section "Production .env: sre only"
 run_gitvaulty 3 create .env.production --group sre

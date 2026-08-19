@@ -76,32 +76,41 @@ Do not add a fake hosted-service UI or a fifth reviewer persona.
 
 ## Scenario contract
 
-Keep these scenes in this order so the animation tells one continuous access-control story:
+Keep these scenes in order so one GIF tells two connected stories in the same repository.
 
-1. As Admin, run `gitvaulty group create dev` as the first repository command. Show GitVaulty
-   automatically collecting the username, initializing the repository, installing the managed agent
-   skill, and then continuing the requested command to create `dev`.
-2. As Admin, create `sre`. Show that the creator is automatically manager and member of both `dev`
-   and `sre`, then commit and push the repository bootstrap files and signed group configuration.
-3. As Admin, create local `.env` for `dev` and `sre`, create `.env.production` for `sre`, and create
-   `terraform/prod.auto.tfvars` for `sre`. Commit and push the encrypted files and policy metadata.
-4. As Alice, create and push `onboard/alice`. Run `gitvaulty user register` and accept the `alice`
+### Demo 1: first encrypted file
+
+1. As Admin, run `gitvaulty create .env` as the first repository command. Show GitVaulty collecting
+   the username, initializing the repository, installing the managed agent skill, and creating the
+   encrypted `.env.gitvaulty` file for the default `team` group.
+2. On a cleared screen, show the demo-only warning and run `gitvaulty cat .env --force`. Display only
+   the generated dummy values. Then run `test ! -e .env` and print the success message proving that
+   direct decryption did not store a plaintext `.env`.
+
+### Demo 2: signed group access control
+
+1. As Admin, create `dev` and `sre`. Show that the creator is automatically manager and member of
+   both groups, then commit and push the repository bootstrap files and signed group configuration.
+2. Change the existing local `.env` to `dev` and `sre` access, create `.env.production` for `sre`,
+   and create `terraform/prod.auto.tfvars` for `sre`. Commit and push the encrypted files and policy
+   metadata.
+3. As Alice, create and push `onboard/alice`. Run `gitvaulty user register` and accept the `alice`
    system-username default, then create and push the public registration commit.
-5. As Admin, pull `main`, merge Alice's reviewed registration, grant `dev`, then commit and push the
+4. As Admin, pull `main`, merge Alice's reviewed registration, grant `dev`, then commit and push the
    access change. Switch to Alice and use `gitvaulty cat .env --force` to show that the single group
    grant unlocks the existing `dev` file.
-6. Repeat the registration, review, merge, grant, commit, and push flow for Sam and `sre`. Switch to
+5. Repeat the registration, review, merge, grant, commit, and push flow for Sam and `sre`. Switch to
    Sam and use `gitvaulty cat ... --force` to show that the group grant unlocks every existing `sre`
    file: local `.env`, production `.env`, and the Terraform secrets.
-7. As Jules, create and push `onboard/jules`, run `gitvaulty user register`, accept the `jules`
+6. As Jules, create and push `onboard/jules`, run `gitvaulty user register`, accept the `jules`
    system-username default, and push the public self-registration commit.
-8. As Admin, merge Jules's reviewed registration. As Alice, show that an ordinary `dev` member cannot
+7. As Admin, merge Jules's reviewed registration. As Alice, show that an ordinary `dev` member cannot
    add Jules. Return to Admin, sign the `dev` membership revision, then commit and push it.
-9. As Jules, use `gitvaulty cat .env --force` to show that the `dev` grant unlocks the local `.env`.
+8. As Jules, use `gitvaulty cat .env --force` to show that the `dev` grant unlocks the local `.env`.
    On the same screen, attempt `gitvaulty cat ... --force` for `.env.production` and
    `terraform/prod.auto.tfvars`, and show both authorization failures.
-10. As Sam, use both SRE-only files in a Terraform command through `gitvaulty run`. Show that Terraform
-    accepts them.
+9. As Sam, use both SRE-only files in a Terraform command through `gitvaulty run`. Show that Terraform
+   accepts them.
 
 If a user-facing command, prompt, message, or access rule in one of these scenes changes, update the
 tape or driver and regenerate the GIF. Add a scene only when it strengthens this story; keep setup
@@ -132,13 +141,19 @@ details out of the visible recording.
   need about three; group listings and decrypted dummy values need about four.
 - Clear between scenes so each section has one readable purpose and long commands do not crowd later
   output.
+- Keep both demos in the same GIF and repository. The access-control chapter must evolve the `.env`
+  created in the first chapter rather than recreating it or resetting hidden state.
 
 ## Review the result
 
 After generation, play the GIF from beginning to end and confirm:
 
-- it opens on `gitvaulty group create dev` implicitly bootstrapping the repository, with no explicit
-  `gitvaulty init`, setup commands, or random characters;
+- it opens on the Demo 1 label and `gitvaulty create .env` implicitly bootstrapping the repository,
+  with no explicit `gitvaulty init`, setup commands, or random characters;
+- Demo 1 shows warned direct decryption and a successful `test ! -e .env` result stating that no
+  plaintext `.env` is stored;
+- Demo 2 begins on a cleared screen, creates both signed access groups, and changes the existing
+  `.env` to `dev + sre` without recreating it;
 - text is legible and no command or important result disappears too quickly;
 - `dev` and `sre` managers and membership are visible;
 - only Admin, Alice, Sam, and Jules appear, and every screen has the correct persona header;
