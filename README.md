@@ -24,54 +24,41 @@ newer.
 
 ## Contents
 
-1. [Demo](#demo)
-2. [Quick start](#quick-start)
-   1. [Add a new developer](#add-a-new-developer)
-3. [Common workflows](#common-workflows)
-   1. [Import an existing plaintext file](#import-an-existing-plaintext-file)
-   2. [Create another encrypted file](#create-another-encrypted-file)
-   3. [Edit an encrypted file](#edit-an-encrypted-file)
-   4. [Materialize files for local development](#materialize-files-for-local-development)
-   5. [Review local plaintext changes](#review-local-plaintext-changes)
-   6. [Pipe a file without materializing it](#pipe-a-file-without-materializing-it)
-   7. [Expose files only while a command runs](#expose-files-only-while-a-command-runs)
-   8. [Create and use a narrower access group](#create-and-use-a-narrower-access-group)
-   9. [Change who can access an existing file](#change-who-can-access-an-existing-file)
-   10. [Inspect users and groups](#inspect-users-and-groups)
-   11. [Offboard a developer](#offboard-a-developer)
-4. [Command reference](#command-reference)
-   1. [Files and workflows](#files-and-workflows)
-   2. [Identity and access commands](#identity-and-access-commands)
-5. [Migrate an existing file](#migrate-an-existing-file)
-6. [Create a new file](#create-a-new-file)
-7. [Edit](#edit)
+1. [Getting started](#getting-started)
+   1. [Quick start](#quick-start)
+   2. [Add a new developer](#add-a-new-developer)
+   3. [Demo](#demo)
+   4. [Install in a project](#install-in-a-project)
+2. [Working with encrypted files](#working-with-encrypted-files)
+   1. [Common workflows](#common-workflows)
+   2. [Migrate an existing file](#migrate-an-existing-file)
+   3. [Create a new file](#create-a-new-file)
+   4. [Edit encrypted files](#edit)
+   5. [Streaming decrypted bytes](#streaming-decrypted-bytes)
+   6. [Local development](#local-development)
+   7. [Ephemeral files while running a command](#ephemeral-files-while-running-a-command)
+3. [Access control](#access-control)
+   1. [Keys, users, and groups](#keys-users-and-groups)
+   2. [Create and use access groups](#create-and-use-a-narrower-access-group)
+   3. [Change file access](#change-who-can-access-an-existing-file)
+   4. [Inspect users and groups](#inspect-users-and-groups)
+   5. [Offboard a developer](#offboard-a-developer)
+4. [Editors and integrations](#editors-and-integrations)
    1. [VS Code](#vs-code)
    2. [JetBrains IDEs](#jetbrains-ides)
-8. [Streaming decrypted bytes](#streaming-decrypted-bytes)
-9. [Local development](#local-development)
-10. [Ephemeral files while running a command](#ephemeral-files-while-running-a-command)
-    1. [Agent skill updates](#agent-skill-updates)
-11. [Supported files](#supported-files)
-12. [Keys, users, and groups](#keys-users-and-groups)
-13. [Install in a project](#install-in-a-project)
-    1. [`npx` reports `uv_cwd`](#npx-reports-uv_cwd)
-14. [Repository layout](#repository-layout)
-15. [Comparisons](#comparisons)
-16. [License](#license)
+   3. [Agent skill updates](#agent-skill-updates)
+5. [Reference](#reference)
+   1. [Command reference](#command-reference)
+   2. [Supported files](#supported-files)
+   3. [Repository layout](#repository-layout)
+   4. [Troubleshooting](#troubleshooting)
+6. [About](#about)
+   1. [Comparisons](#comparisons)
+   2. [License](#license)
 
-## Demo
+## Getting started
 
-This real CLI walkthrough creates `dev` and `sre` groups, encrypts a local `.env` for both groups,
-restricts the production `.env` and Terraform secrets to SREs, and then adds a new developer who can
-decrypt only the local `.env`.
-
-![GitVaulty terminal demo showing group-based development, production, and Terraform secret access](demos/access-control.gif)
-
-The demo is reproducible from the checked-in [VHS tape](demos/access-control.tape) and
-[synchronous demo driver](demos/access-control-demo.sh). No private identity or plaintext secret is
-committed.
-
-## Quick start
+### Quick start
 
 Run these commands inside an existing Git repository. Initialize GitVaulty first:
 
@@ -134,9 +121,45 @@ git commit -m "chore: grant alice team access"
 after the access commit is merged and pulled. The public-key commit and access-grant commit are
 separate so an existing authorized developer explicitly approves access.
 
-## Common workflows
+### Demo
 
-### Import an existing plaintext file
+This real CLI walkthrough creates `dev` and `sre` groups, encrypts a local `.env` for both groups,
+restricts the production `.env` and Terraform secrets to SREs, and then adds a new developer who can
+decrypt only the local `.env`.
+
+![GitVaulty terminal demo showing group-based development, production, and Terraform secret access](demos/access-control.gif)
+
+The demo is reproducible from the checked-in [VHS tape](demos/access-control.tape) and
+[synchronous demo driver](demos/access-control-demo.sh). No private identity or plaintext secret is
+committed.
+
+### Install in a project
+
+Install GitVaulty as a development dependency so everyone working on the project uses the same
+version:
+
+```sh
+npm install --save-dev gitvaulty
+```
+
+Run the project's installed version with `npx`:
+
+```sh
+npx gitvaulty <command>
+```
+
+For example:
+
+```sh
+npx gitvaulty init
+npx gitvaulty run --all -- npm start
+```
+
+## Working with encrypted files
+
+### Common workflows
+
+#### Import an existing plaintext file
 
 ```sh
 npx gitvaulty import .env
@@ -147,7 +170,7 @@ git commit -m "chore: encrypt development environment"
 The plaintext remains available only in the current clone and is added to Git's clone-local exclude
 file. If it was already tracked, rotate its secrets even if you later remove it from Git history.
 
-### Create another encrypted file
+#### Create another encrypted file
 
 ```sh
 npx gitvaulty create config/secrets.yaml
@@ -157,7 +180,7 @@ git commit -m "chore: add encrypted service configuration"
 
 Use `create` when the plaintext path does not exist and `import` when it does.
 
-### Edit an encrypted file
+#### Edit an encrypted file
 
 ```sh
 npx gitvaulty edit config/secrets.yaml
@@ -167,7 +190,7 @@ git commit -m "chore: update service configuration"
 
 Always pass the logical plaintext path, without the `.gitvaulty` suffix.
 
-### Materialize files for local development
+#### Materialize files for local development
 
 ```sh
 npx gitvaulty materialize -f .env -f config/secrets.yaml
@@ -178,7 +201,7 @@ npx gitvaulty clean
 `materialize` creates private local plaintext copies. `clean` removes only unchanged copies that
 still match their ciphertext.
 
-### Review local plaintext changes
+#### Review local plaintext changes
 
 ```sh
 npx gitvaulty diff
@@ -189,7 +212,7 @@ npx gitvaulty diff .env config/secrets.yaml
 output. The output intentionally contains plaintext secret values. Like `git diff`, differences
 exit successfully by default; use `--exit-code` when a difference should exit with status 1.
 
-### Pipe a file without materializing it
+#### Pipe a file without materializing it
 
 ```sh
 npx gitvaulty cat config/secrets.json | jq .
@@ -198,7 +221,7 @@ npx gitvaulty cat config/secrets.json | jq .
 `cat` writes the exact decrypted bytes to stdout and creates no plaintext file. It refuses to print
 directly to an interactive terminal unless `--force` is supplied.
 
-### Expose files only while a command runs
+#### Expose files only while a command runs
 
 ```sh
 npx gitvaulty run -f .env -- npm start
@@ -207,90 +230,7 @@ npx gitvaulty run -f .env -- npm start
 Use `--all` instead of repeatable `--file` options when the command needs every file you can access.
 GitVaulty removes unchanged plaintext files created by that invocation when the command exits.
 
-### Create and use a narrower access group
-
-```sh
-npx gitvaulty group create production
-npx gitvaulty group add production alice
-npx gitvaulty create .env.production --group production
-```
-
-Commit `.gitvaulty/recipients.json`, `.sops.yaml`, and every ciphertext changed by the membership or
-file-policy update.
-
-### Change who can access an existing file
-
-```sh
-npx gitvaulty access .env.production
-```
-
-The interactive command selects groups first and direct-user exceptions second. For automation,
-replace the complete policy explicitly:
-
-```sh
-npx gitvaulty access .env.production --group production --user alice
-```
-
-### Inspect users and groups
-
-```sh
-npx gitvaulty user list
-npx gitvaulty group list
-```
-
-Run `npx gitvaulty access <path>` without flags to inspect and interactively update one file's
-policy.
-
-### Offboard a developer
-
-```sh
-npx gitvaulty user remove
-git add .gitvaulty/recipients.json .sops.yaml
-git add -u -- '*.gitvaulty'
-git commit -m "chore: revoke GitVaulty access"
-```
-
-Removing a user re-encrypts affected files without their recipient. It cannot revoke plaintext or
-historical ciphertext they already copied, so rotate every external credential they knew.
-
-## Command reference
-
-### Files and workflows
-
-| Command | Purpose |
-| --- | --- |
-| [`gitvaulty init`](docs/commands/init.md) | Initialize GitVaulty in a Git repository. |
-| [`gitvaulty create`](docs/commands/create.md) | Create and edit a new encrypted file. |
-| [`gitvaulty import`](docs/commands/import.md) | Encrypt an existing plaintext file or update existing ciphertext. |
-| [`gitvaulty access`](docs/commands/access.md) | Replace a file's group and direct-user access policy. |
-| [`gitvaulty edit`](docs/commands/edit.md) | Edit a file through a private temporary plaintext copy. |
-| [`gitvaulty cat`](docs/commands/cat.md) | Stream one decrypted file to standard output without materializing it. |
-| [`gitvaulty diff`](docs/commands/diff.md) | Show Git-style plaintext changes relative to encrypted sources. |
-| [`gitvaulty materialize`](docs/commands/materialize.md) | Create persistent local plaintext copies. |
-| [`gitvaulty clean`](docs/commands/clean.md) | Remove unchanged materialized plaintext files. |
-| [`gitvaulty status`](docs/commands/status.md) | Compare local plaintext with encrypted sources. |
-| [`gitvaulty run`](docs/commands/run.md) | Materialize files while a child command runs. |
-
-### Identity and access commands
-
-- [`gitvaulty key`](docs/commands/key.md) — Manage your global age identity:
-  [`create`](docs/commands/key-create.md),
-  [`public`](docs/commands/key-public.md),
-  [`backup`](docs/commands/key-backup.md), and
-  [`restore`](docs/commands/key-restore.md).
-- [`gitvaulty user`](docs/commands/user.md) — Manage registered repository users:
-  [`register`](docs/commands/user-register.md),
-  [`add`](docs/commands/user-add.md),
-  [`list`](docs/commands/user-list.md), and
-  [`remove`](docs/commands/user-remove.md).
-- [`gitvaulty group`](docs/commands/group.md) — Manage access groups:
-  [`create`](docs/commands/group-create.md),
-  [`add`](docs/commands/group-add.md),
-  [`remove`](docs/commands/group-remove.md),
-  [`list`](docs/commands/group-list.md), and
-  [`delete`](docs/commands/group-delete.md).
-
-## Migrate an existing file
+### Migrate an existing file
 
 If `.env` already exists, import it:
 
@@ -319,7 +259,7 @@ This does not erase the plaintext from existing commits or other clones. Rewriti
 history is a separate, disruptive repository operation; rotate every credential that may have been
 exposed regardless of whether you later rewrite that history.
 
-## Create a new file
+### Create a new file
 
 If the plaintext file does not exist:
 
@@ -343,7 +283,9 @@ npx gitvaulty import service-account.json --group platform --user alice
 `--group` and `--user` may be repeated. Direct users are intended for exceptions; groups are the
 primary access model.
 
-## Edit
+<a id="edit"></a>
+
+### Edit encrypted files
 
 Always use the logical plaintext path:
 
@@ -389,54 +331,7 @@ npx gitvaulty import --update .env
 
 The updated encrypted file is decrypted and verified before replacing the previous version.
 
-### VS Code
-
-[Install GitVaulty from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty),
-search for **GitVaulty** in VS Code's Extensions view, or run:
-
-```sh
-code --install-extension divb0.gitvaulty
-```
-
-The Marketplace provides native packages for macOS (Apple Silicon and Intel), Linux (ARM64 and
-x64), and Windows x64.
-
-To edit an encrypted file:
-
-1. Open the local GitVaulty repository as a trusted VS Code workspace.
-2. Select a `*.gitvaulty` file in the Explorer.
-3. Edit the decrypted virtual document normally.
-4. Save or use Auto Save to re-encrypt, verify, and atomically replace the ciphertext.
-
-The virtual document keeps the plaintext filename for syntax highlighting and compatible language
-features. GitVaulty does not materialize a plaintext repository file.
-
-The extension detects ciphertext changes and refuses to overwrite a newer encrypted version. Native
-editing means decrypted text is visible to VS Code, compatible extensions and language servers, and
-possibly VS Code's private Hot Exit recovery storage. Use `gitvaulty edit` when that security boundary
-is not appropriate.
-
-See the [full VS Code guide](docs/vscode.md) for setup, commands, conflict handling, security details,
-and troubleshooting.
-
-### JetBrains IDEs
-
-GitVaulty's JetBrains plugin opens `*.gitvaulty` files as decrypted native editor documents in
-IntelliJ IDEA and other desktop JetBrains IDEs. Saving re-encrypts, verifies, and atomically replaces
-the ciphertext without creating a plaintext sibling in the repository.
-
-The plugin supports macOS (Apple Silicon and Intel), Linux (ARM64 and x64), and Windows x64. It
-downloads a native GitVaulty runtime for the current platform from an exact GitHub Release asset,
-then verifies both its byte length and SHA-256 digest before installation.
-
-The editor detects ciphertext changes and refuses to overwrite a newer encrypted version. Decrypted
-text is visible to the IDE document model, compatible plugins and language services, and potentially
-IDE recovery storage. Use `gitvaulty edit` when that security boundary is not appropriate.
-
-See the [JetBrains plugin guide](jetbrains/README.md) for installation, editor actions, conflict
-handling, security details, development, and release packaging.
-
-## Streaming decrypted bytes
+### Streaming decrypted bytes
 
 Use `cat` when the receiving tool accepts standard input and does not need a native file path:
 
@@ -449,7 +344,7 @@ GitVaulty writes only the exact decrypted bytes to stdout. Errors stay on stderr
 file is created. Direct output to an interactive terminal is refused unless `--force` is supplied.
 See the [`cat` command reference](docs/commands/cat.md) for the output and safety contract.
 
-## Local development
+### Local development
 
 Materialize every file you can access:
 
@@ -487,7 +382,7 @@ npx gitvaulty clean
 `clean` removes only regular, untracked files whose bytes still match GitVaulty. Modified or unsafe
 files are reported and kept.
 
-## Ephemeral files while running a command
+### Ephemeral files while running a command
 
 `run` materializes missing files, starts the command, and removes only the unchanged files that
 this invocation created:
@@ -529,49 +424,9 @@ print, log, or inspect secret values unnecessarily. Agent instructions reduce ac
 they are not a security sandbox. Use the agent harness or operating-system isolation when an agent
 must be technically prevented from reading plaintext available to its process.
 
-### Agent skill updates
+## Access control
 
-Before every command that operates on an initialized repository, GitVaulty compares
-`.agents/skills/gitvaulty/SKILL.md` with the skill bundled in the installed GitVaulty package. It
-uses a SHA-256 digest of normalized text, so normal LF and CRLF line-ending differences do not look
-like updates. Global `key` commands, help, version output, and uninitialized repositories do not run
-this check.
-
-When the skill is missing or differs, an interactive command offers to install or update it, skip
-once, or stop managing it for the repository. Updating differing content requires explicit approval
-because it replaces local customizations. Non-interactive commands print a warning and continue
-without changing files.
-
-The repository-wide policy is stored in `.gitvaulty/config.yaml`:
-
-```yaml
-version: 1
-agentSkill:
-  mode: managed
-```
-
-Set `mode: disabled`—or choose **Don't ask again in this repository** at the prompt—to leave the
-skill untouched and suppress future checks for every contributor. Commit the configuration change.
-
-## Supported files
-
-Whole-file encryption works with any regular file:
-
-```text
-.env.gitvaulty                          -> .env
-config/secrets.yaml.gitvaulty           -> config/secrets.yaml
-terraform/prod.tfvars.json.gitvaulty    -> terraform/prod.tfvars.json
-certs/client.pem.gitvaulty              -> certs/client.pem
-```
-
-The `.gitvaulty` suffix is the only storage convention. All commands accept the path on the right,
-without the suffix.
-
-Because the complete byte stream is opaque, Git does not reveal keys or document structure. The
-tradeoff is that Git cannot merge concurrent edits to the same encrypted file meaningfully; keep
-files small and split unrelated secrets into separate files when different people edit them.
-
-## Keys, users, and groups
+### Keys, users, and groups
 
 ```sh
 npx gitvaulty key create
@@ -628,29 +483,196 @@ GITVAULTY_KEY='AGE-SECRET-KEY-...' npx gitvaulty run --all -- npm start
 `SOPS_AGE_KEY` is also supported. Mounted keys can use
 `GITVAULTY_AGE_KEY_FILE=/secure/identity.txt` or `SOPS_AGE_KEY_FILE`.
 
-## Install in a project
-
-Install GitVaulty as a development dependency so everyone working on the project uses the same
-version:
+### Create and use a narrower access group
 
 ```sh
-npm install --save-dev gitvaulty
+npx gitvaulty group create production
+npx gitvaulty group add production alice
+npx gitvaulty create .env.production --group production
 ```
 
-Run the project's installed version with `npx`:
+Commit `.gitvaulty/recipients.json`, `.sops.yaml`, and every ciphertext changed by the membership or
+file-policy update.
+
+### Change who can access an existing file
 
 ```sh
-npx gitvaulty <command>
+npx gitvaulty access .env.production
 ```
 
-For example:
+The interactive command selects groups first and direct-user exceptions second. For automation,
+replace the complete policy explicitly:
 
 ```sh
-npx gitvaulty init
-npx gitvaulty run --all -- npm start
+npx gitvaulty access .env.production --group production --user alice
 ```
 
-### `npx` reports `uv_cwd`
+### Inspect users and groups
+
+```sh
+npx gitvaulty user list
+npx gitvaulty group list
+```
+
+Run `npx gitvaulty access <path>` without flags to inspect and interactively update one file's
+policy.
+
+### Offboard a developer
+
+```sh
+npx gitvaulty user remove
+git add .gitvaulty/recipients.json .sops.yaml
+git add -u -- '*.gitvaulty'
+git commit -m "chore: revoke GitVaulty access"
+```
+
+Removing a user re-encrypts affected files without their recipient. It cannot revoke plaintext or
+historical ciphertext they already copied, so rotate every external credential they knew.
+
+## Editors and integrations
+
+### VS Code
+
+[Install GitVaulty from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty),
+search for **GitVaulty** in VS Code's Extensions view, or run:
+
+```sh
+code --install-extension divb0.gitvaulty
+```
+
+The Marketplace provides native packages for macOS (Apple Silicon and Intel), Linux (ARM64 and
+x64), and Windows x64.
+
+To edit an encrypted file:
+
+1. Open the local GitVaulty repository as a trusted VS Code workspace.
+2. Select a `*.gitvaulty` file in the Explorer.
+3. Edit the decrypted virtual document normally.
+4. Save or use Auto Save to re-encrypt, verify, and atomically replace the ciphertext.
+
+The virtual document keeps the plaintext filename for syntax highlighting and compatible language
+features. GitVaulty does not materialize a plaintext repository file.
+
+The extension detects ciphertext changes and refuses to overwrite a newer encrypted version. Native
+editing means decrypted text is visible to VS Code, compatible extensions and language servers, and
+possibly VS Code's private Hot Exit recovery storage. Use `gitvaulty edit` when that security boundary
+is not appropriate.
+
+See the [full VS Code guide](docs/vscode.md) for setup, commands, conflict handling, security details,
+and troubleshooting.
+
+### JetBrains IDEs
+
+GitVaulty's JetBrains plugin opens `*.gitvaulty` files as decrypted native editor documents in
+IntelliJ IDEA and other desktop JetBrains IDEs. Saving re-encrypts, verifies, and atomically replaces
+the ciphertext without creating a plaintext sibling in the repository.
+
+The plugin supports macOS (Apple Silicon and Intel), Linux (ARM64 and x64), and Windows x64. It
+downloads a native GitVaulty runtime for the current platform from an exact GitHub Release asset,
+then verifies both its byte length and SHA-256 digest before installation.
+
+The editor detects ciphertext changes and refuses to overwrite a newer encrypted version. Decrypted
+text is visible to the IDE document model, compatible plugins and language services, and potentially
+IDE recovery storage. Use `gitvaulty edit` when that security boundary is not appropriate.
+
+See the [JetBrains plugin guide](jetbrains/README.md) for installation, editor actions, conflict
+handling, security details, development, and release packaging.
+
+### Agent skill updates
+
+Before every command that operates on an initialized repository, GitVaulty compares
+`.agents/skills/gitvaulty/SKILL.md` with the skill bundled in the installed GitVaulty package. It
+uses a SHA-256 digest of normalized text, so normal LF and CRLF line-ending differences do not look
+like updates. Global `key` commands, help, version output, and uninitialized repositories do not run
+this check.
+
+When the skill is missing or differs, an interactive command offers to install or update it, skip
+once, or stop managing it for the repository. Updating differing content requires explicit approval
+because it replaces local customizations. Non-interactive commands print a warning and continue
+without changing files.
+
+The repository-wide policy is stored in `.gitvaulty/config.yaml`:
+
+```yaml
+version: 1
+agentSkill:
+  mode: managed
+```
+
+Set `mode: disabled`—or choose **Don't ask again in this repository** at the prompt—to leave the
+skill untouched and suppress future checks for every contributor. Commit the configuration change.
+
+## Reference
+
+### Command reference
+
+#### Files and workflows
+
+| Command | Purpose |
+| --- | --- |
+| [`gitvaulty init`](docs/commands/init.md) | Initialize GitVaulty in a Git repository. |
+| [`gitvaulty create`](docs/commands/create.md) | Create and edit a new encrypted file. |
+| [`gitvaulty import`](docs/commands/import.md) | Encrypt an existing plaintext file or update existing ciphertext. |
+| [`gitvaulty access`](docs/commands/access.md) | Replace a file's group and direct-user access policy. |
+| [`gitvaulty edit`](docs/commands/edit.md) | Edit a file through a private temporary plaintext copy. |
+| [`gitvaulty cat`](docs/commands/cat.md) | Stream one decrypted file to standard output without materializing it. |
+| [`gitvaulty diff`](docs/commands/diff.md) | Show Git-style plaintext changes relative to encrypted sources. |
+| [`gitvaulty materialize`](docs/commands/materialize.md) | Create persistent local plaintext copies. |
+| [`gitvaulty clean`](docs/commands/clean.md) | Remove unchanged materialized plaintext files. |
+| [`gitvaulty status`](docs/commands/status.md) | Compare local plaintext with encrypted sources. |
+| [`gitvaulty run`](docs/commands/run.md) | Materialize files while a child command runs. |
+
+#### Identity and access commands
+
+- [`gitvaulty key`](docs/commands/key.md) — Manage your global age identity:
+  [`create`](docs/commands/key-create.md),
+  [`public`](docs/commands/key-public.md),
+  [`backup`](docs/commands/key-backup.md), and
+  [`restore`](docs/commands/key-restore.md).
+- [`gitvaulty user`](docs/commands/user.md) — Manage registered repository users:
+  [`register`](docs/commands/user-register.md),
+  [`add`](docs/commands/user-add.md),
+  [`list`](docs/commands/user-list.md), and
+  [`remove`](docs/commands/user-remove.md).
+- [`gitvaulty group`](docs/commands/group.md) — Manage access groups:
+  [`create`](docs/commands/group-create.md),
+  [`add`](docs/commands/group-add.md),
+  [`remove`](docs/commands/group-remove.md),
+  [`list`](docs/commands/group-list.md), and
+  [`delete`](docs/commands/group-delete.md).
+
+### Supported files
+
+Whole-file encryption works with any regular file:
+
+```text
+.env.gitvaulty                          -> .env
+config/secrets.yaml.gitvaulty           -> config/secrets.yaml
+terraform/prod.tfvars.json.gitvaulty    -> terraform/prod.tfvars.json
+certs/client.pem.gitvaulty              -> certs/client.pem
+```
+
+The `.gitvaulty` suffix is the only storage convention. All commands accept the path on the right,
+without the suffix.
+
+Because the complete byte stream is opaque, Git does not reveal keys or document structure. The
+tradeoff is that Git cannot merge concurrent edits to the same encrypted file meaningfully; keep
+files small and split unrelated secrets into separate files when different people edit them.
+
+### Repository layout
+
+```text
+.gitvaulty/config.yaml                        # repository-wide GitVaulty preferences
+.gitvaulty/recipients.json                    # public users, groups, and per-file access
+.sops.yaml                                    # generated public SOPS rules
+.agents/skills/gitvaulty/SKILL.md             # safe GitVaulty workflow for coding agents
+.env.gitvaulty                                # opaque encrypted .env bytes
+terraform/prod.tfvars.json.gitvaulty          # opaque encrypted Terraform bytes
+```
+
+### Troubleshooting
+
+#### `npx` reports `uv_cwd`
 
 `npx` asks npm to read the current working directory before GitVaulty starts. If that directory was
 removed, or the operating system no longer permits access to it, npm can exit with
@@ -664,18 +686,9 @@ npx gitvaulty key backup
 Global key commands do not need to run inside a Git repository. If the error persists from an
 accessible directory, check that the terminal has permission to access that directory.
 
-## Repository layout
+## About
 
-```text
-.gitvaulty/config.yaml                        # repository-wide GitVaulty preferences
-.gitvaulty/recipients.json                    # public users, groups, and per-file access
-.sops.yaml                                    # generated public SOPS rules
-.agents/skills/gitvaulty/SKILL.md             # safe GitVaulty workflow for coding agents
-.env.gitvaulty                                # opaque encrypted .env bytes
-terraform/prod.tfvars.json.gitvaulty          # opaque encrypted Terraform bytes
-```
-
-## Comparisons
+### Comparisons
 
 Evaluating repository and environment-secret tools?
 
@@ -683,6 +696,6 @@ Evaluating repository and environment-secret tools?
 - [GitVaulty compared with Cottage](https://github.com/divB0/gitvaulty/blob/main/docs/comparisons/cottage.md)
 - [GitVaulty compared with dotenvx](https://github.com/divB0/gitvaulty/blob/main/docs/comparisons/dotenvx.md)
 
-## License
+### License
 
 MIT
