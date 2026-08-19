@@ -19,8 +19,9 @@ contents, comments, formatting, and file types are preserved when decrypted; the
 Access is assigned to groups per file, with direct user grants available for exceptions. Every
 person keeps one private GitVaulty master identity; there is no shared team decryption key.
 
-GitVaulty is available on [npm](https://www.npmjs.com/package/gitvaulty) and requires Node.js 20 or
-newer.
+GitVaulty is available through its official Homebrew tap and on
+[npm](https://www.npmjs.com/package/gitvaulty). Homebrew installs the required Node.js runtime;
+direct npm installation requires Node.js 20 or newer.
 
 ![GitVaulty terminal demo showing direct decryption without stored plaintext followed by group-based access control](demos/access-control.gif)
 
@@ -29,9 +30,10 @@ newer.
 ## Contents
 
 1. [Getting started](#getting-started)
-   1. [Quick start](#quick-start)
-   2. [Add a new developer](#add-a-new-developer)
-   3. [Install in a project](#install-in-a-project)
+   1. [Install GitVaulty](#install-gitvaulty)
+   2. [Quick start](#quick-start)
+   3. [Add a new developer](#add-a-new-developer)
+   4. [Install in a project](#install-in-a-project)
 2. [Working with encrypted files](#working-with-encrypted-files)
    1. [Common workflows](#common-workflows)
    2. [Migrate an existing file](#migrate-an-existing-file)
@@ -60,6 +62,24 @@ newer.
    2. [License](#license)
 
 ## Getting started
+
+### Install GitVaulty
+
+On macOS, install GitVaulty from the official Homebrew tap:
+
+```sh
+brew install divB0/tap/gitvaulty
+```
+
+Homebrew is the recommended macOS installation and also works with Homebrew on Linux. Upgrade with
+`brew upgrade gitvaulty`.
+
+For Node.js projects, Windows, and CI, install from npm or run a pinned version with `npx`:
+
+```sh
+npm install --global gitvaulty
+npx gitvaulty@latest --version
+```
 
 ### Quick start
 

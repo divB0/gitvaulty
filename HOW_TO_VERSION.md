@@ -55,3 +55,11 @@ When classifying a change, use this order:
 4. Does it only change documentation, tests, or internals without affecting the shipped package? No package bump is required.
 
 When uncertain whether users may rely on a behavior, treat it as user space and ask before changing it.
+
+## Verify Distribution Channels
+
+After publishing a GitVaulty release, verify that the matching package is available from npm. The
+public [`divB0/homebrew-tap`](https://github.com/divB0/homebrew-tap) repository checks npm on a
+schedule and updates its pinned tarball URL and SHA-256 automatically. Confirm that the tap formula
+reaches the same version and that its validation workflow passes before announcing Homebrew
+availability for the release.
