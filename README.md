@@ -526,8 +526,10 @@ CI and service accounts can inject a separate private identity:
 GITVAULTY_KEY='GITVAULTY-IDENTITY-...' npx gitvaulty run --all -- npm start
 ```
 
-Mounted master identities can use `GITVAULTY_AGE_KEY_FILE=/secure/identity.txt` or
-`SOPS_AGE_KEY_FILE`. GitVaulty derives and passes the native age identity to SOPS internally.
+Mounted master identities use `GITVAULTY_AGE_KEY_FILE=/secure/identity.txt`. GitVaulty 3.0 no
+longer accepts `SOPS_AGE_KEY_FILE` as a master-identity source; rename that environment variable to
+`GITVAULTY_AGE_KEY_FILE` before upgrading. The referenced identity file and encrypted files do not
+change. GitVaulty derives and passes the native age identity to SOPS internally.
 
 ### Create and use a narrower access group
 

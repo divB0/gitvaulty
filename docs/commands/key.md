@@ -23,10 +23,23 @@ GitVaulty checks identity sources in this order:
 
 1. `GITVAULTY_KEY`
 2. `GITVAULTY_AGE_KEY_FILE`
-3. `SOPS_AGE_KEY_FILE`
-4. The platform default file
+3. The platform default file
 
 The normal default is `~/.config/gitvaulty/identity`. On Windows, `%APPDATA%\gitvaulty\identity` is used when `APPDATA` is set.
+
+### Upgrade to 3.0
+
+GitVaulty 3.0 no longer treats `SOPS_AGE_KEY_FILE` as a master-identity source. Change the variable
+name without changing the referenced file:
+
+```sh
+export GITVAULTY_AGE_KEY_FILE=/secure/identity
+```
+
+GitVaulty still removes `SOPS_AGE_KEY_FILE` before invoking SOPS or a command wrapped by
+`gitvaulty run`, preventing those child processes from loading an unintended private key. Keeping
+the same master-identity file preserves its public keys and does not require re-encrypting existing
+`*.gitvaulty` files.
 
 ### Upgrade from 1.x
 

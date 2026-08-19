@@ -10,7 +10,7 @@ npx gitvaulty key create
 
 GitVaulty generates a random master secret and writes it to the configured identity file with mode `0600`. It derives a native age/X25519 encryption identity and Ed25519 signing identity in memory. The output prints both public keys and a reminder to back up the single master identity.
 
-The command uses `GITVAULTY_AGE_KEY_FILE` or `SOPS_AGE_KEY_FILE` when configured; otherwise it uses the platform default described in [`gitvaulty key`](key.md#identity-sources).
+The command uses `GITVAULTY_AGE_KEY_FILE` when configured; otherwise it uses the platform default described in [`gitvaulty key`](key.md#identity-sources).
 
 ## Existing identities
 
