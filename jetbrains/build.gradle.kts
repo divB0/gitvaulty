@@ -1,4 +1,5 @@
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginSignatureTask
 
 plugins {
   kotlin("jvm") version "2.3.20"
@@ -63,5 +64,14 @@ tasks.test {
   maxHeapSize = "2g"
   providers.gradleProperty("gitvaultyTestRuntime").orNull?.let {
     systemProperty("gitvaulty.test.runtime", file(it).absolutePath)
+  }
+}
+
+tasks.named<VerifyPluginSignatureTask>("verifyPluginSignature") {
+  dependsOn("signPlugin")
+  providers.gradleProperty("gitvaultyVerificationCertificate").orNull?.let {
+    certificateChain.unset()
+    certificateChain.unsetConvention()
+    certificateChainFile.set(file(it))
   }
 }

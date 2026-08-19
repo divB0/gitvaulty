@@ -98,5 +98,17 @@ On Windows the executable name ends in `.exe`. `./jetbrains/gradlew -p jetbrains
 sandbox IDE for manual testing.
 
 Release automation builds the runtime natively for all five targets, produces an exact manifest,
-embeds it in the plugin, creates a GitHub Release draft with a real changelog summary, and can sign
-and publish the package to JetBrains Marketplace when the publishing secrets are provided.
+embeds it in the plugin, author-signs and verifies the plugin ZIP, and creates a GitHub Release draft
+with a real changelog summary. The release workflow requires these GitHub Actions secrets:
+
+- `JETBRAINS_CERTIFICATE_CHAIN`
+- `JETBRAINS_PRIVATE_KEY`
+- `JETBRAINS_PRIVATE_KEY_PASSWORD`
+- `JETBRAINS_PUBLISH_TOKEN` for Marketplace updates
+
+JetBrains requires the first plugin version to be uploaded manually so its vendor, license, source
+repository, tags, release channel, and listing details can be selected. Create and push the
+`jetbrains-v0.1.0` tag, publish the resulting GitHub Release draft so its runtime assets are public,
+then upload `gitvaulty-jetbrains-0.1.0-signed.zip` in JetBrains Marketplace. For later versions, run
+the **JetBrains plugin release** workflow manually with `publish_marketplace=true` after publishing
+the matching GitHub runtime release.

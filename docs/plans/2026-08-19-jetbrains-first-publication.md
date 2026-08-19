@@ -35,6 +35,7 @@ Commit: `docs: plan first JetBrains Marketplace publication`
 
 **Files:**
 - Modify: `.github/workflows/jetbrains-release.yml`
+- Modify: `jetbrains/build.gradle.kts`
 - Modify: `jetbrains/README.md`
 
 **Step 1: Add the signed-plugin job**
