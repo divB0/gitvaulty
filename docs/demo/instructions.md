@@ -67,9 +67,11 @@ Do not add a fake hosted-service UI or a fifth reviewer persona.
 
 Keep these scenes in this order so the animation tells one continuous access-control story:
 
-1. As Admin, initialize GitVaulty, commit the repository configuration, and push `main` to `origin`.
-2. As Admin, create `dev` and `sre`. Show that the creator is automatically manager and member, then
-   commit and push the signed group configuration.
+1. As Admin, run `gitvaulty group create dev` as the first repository command. Show GitVaulty
+   automatically collecting the username, initializing the repository, installing the managed agent
+   skill, and then continuing the requested command to create `dev`.
+2. As Admin, create `sre`. Show that the creator is automatically manager and member of both `dev`
+   and `sre`, then commit and push the repository bootstrap files and signed group configuration.
 3. As Alice, create and push `onboard/alice` containing only `gitvaulty user register alice` and its
    public registration commit.
 4. As Admin, pull `main`, merge Alice's reviewed registration, grant `dev`, then commit and push the
@@ -110,7 +112,8 @@ details out of the visible recording.
 
 After generation, play the GIF from beginning to end and confirm:
 
-- it opens on the repository initialization, with no setup commands or random characters;
+- it opens on `gitvaulty group create dev` implicitly bootstrapping the repository, with no explicit
+  `gitvaulty init`, setup commands, or random characters;
 - text is legible and no command or important result disappears too quickly;
 - `dev` and `sre` managers and membership are visible;
 - only Admin, Alice, Sam, and Jules appear, and every screen has the correct persona header;

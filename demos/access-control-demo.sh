@@ -130,18 +130,12 @@ review_and_grant() {
 }
 
 as_user admin
-section "Publish the initialized GitVaulty repository"
-run_git 1 add -A
-run_git_commit 3 "chore: initialize GitVaulty"
-run_git 3 push -u origin main
-
-section "Create dev + sre access groups"
-run_gitvaulty 2 group create dev
+section "Create sre and review both signed access groups"
 run_gitvaulty 2 group create sre
 run_gitvaulty 4 group list
 run_git 1 add -A
-run_git_commit 3 "chore: add dev and sre groups"
-run_git 3 push
+run_git_commit 3 "chore: bootstrap GitVaulty access"
+run_git 3 push -u origin main
 
 as_user alice
 publish_registration alice Alice

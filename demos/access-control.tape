@@ -47,17 +47,18 @@ Enter
 Sleep 500ms
 Show
 
-Type "# Initialize a GitVaulty repository"
+Type "# First command bootstraps GitVaulty automatically"
 Enter
 Sleep 1s
-Type "gitvaulty init"
+Type "gitvaulty group create dev"
 Enter
 Wait+Screen@30s /Your username/
 Type "admin"
 Enter
+Wait+Screen@30s /GitVaulty initialized/
 Wait+Screen@30s /Installed agent skill/
-Wait+Screen@30s /GitVaulty is ready/
-Sleep 2s
+Wait+Screen@30s /Created group dev/
+Sleep 3s
 Type 'bash "$DEMO_SCRIPT"'
 Enter
 Wait+Screen@600s /Demo complete/
