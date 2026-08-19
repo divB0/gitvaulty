@@ -35,9 +35,9 @@ export function identityFile(
 ): string {
   const override = environment.GITVAULTY_AGE_KEY_FILE ?? environment.SOPS_AGE_KEY_FILE;
   if (override) return path.resolve(override);
-  if (platform === "win32" && environment.APPDATA) return path.join(environment.APPDATA, "gitvaulty", "identity.txt");
+  if (platform === "win32" && environment.APPDATA) return path.join(environment.APPDATA, "gitvaulty", "identity");
   const config = environment.XDG_CONFIG_HOME ?? path.join(homeDirectory, ".config");
-  return path.join(config, "gitvaulty", "identity.txt");
+  return path.join(config, "gitvaulty", "identity");
 }
 
 function decodeMasterIdentity(identity: string): Buffer {
