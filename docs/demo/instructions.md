@@ -96,9 +96,11 @@ Keep these scenes in this order so the animation tells one continuous access-con
 7. As Jules, create and push `onboard/jules` containing the public self-registration.
 8. As Admin, merge Jules's reviewed registration. As Alice, show that an ordinary `dev` member cannot
    add Jules. Return to Admin, sign the `dev` membership revision, then commit and push it.
-9. As Jules, show that the `dev` grant unlocks every existing `dev` file, while only local `.env`
-   appears. Attempt to decrypt `.env.production` and `terraform/prod.auto.tfvars`, and show both
-   authorization failures.
+9. As Jules, show the local `.env` through `gitvaulty cat .env --force` on a dedicated screen. The
+   screen must warn that the displayed values are generated placeholders for the demo and that real
+   secrets should not be printed in a terminal. Then show that the `dev` grant unlocks every existing
+   `dev` file, while only local `.env` appears. Attempt to decrypt `.env.production` and
+   `terraform/prod.auto.tfvars`, and show both authorization failures.
 10. As Sam, use both SRE-only files in a Terraform command through `gitvaulty run`. Show that Terraform
     accepts them and that no plaintext secret file remains afterward.
 
@@ -110,8 +112,9 @@ details out of the visible recording.
 
 - Use dummy plaintext only. Never record real credentials or private identities.
 - Store runtime identities and plaintext only in the tape's explicit `/tmp` paths.
-- Never print plaintext secret values. Demonstrate success through filenames, authorization
-  messages, Terraform validation, and cleanup status.
+- Print plaintext only in the dedicated Jules `gitvaulty cat .env --force` scene, using the generated
+  dummy fixture values. Keep the visible warning immediately above the command. Never substitute real
+  credentials, print another secret file, or expose private identities.
 - Keep setup commands hidden, use VHS's native `Ctrl+L` before the first persona header, and call
   `Show` only after the hidden readiness marker confirms setup has finished and the complete header
   is on the cleared terminal. Hold the header briefly before typing the first scene so frame zero is
@@ -142,11 +145,14 @@ After generation, play the GIF from beginning to end and confirm:
 - Alice's rejected membership change is readable before Admin's signed grant;
 - encrypted secret and access-policy changes are committed and pushed;
 - local, production, and Terraform access rules match the scenario contract;
+- Jules's dedicated `gitvaulty cat .env --force` screen includes the demo-only warning and displays
+  only the generated dummy fixture values;
 - Jules's two authorization failures are readable;
 - Jules's `dev` grant visibly unlocks every `dev` file without unlocking either SRE-only file;
 - Sam's Terraform success and final missing-file status are readable;
-- no secret value, master identity, derived private key, or personal workstation path is visible;
-  the expected disposable `/tmp/gitvaulty-readme.*/remote.git` push target is allowed;
+- apart from the warned dummy `.env` output, no plaintext value, master identity, derived private
+  key, or personal workstation path is visible; the expected disposable
+  `/tmp/gitvaulty-readme.*/remote.git` push target is allowed;
 - the final frame remains long enough to read.
 
 For targeted frame inspection, first read the duration:

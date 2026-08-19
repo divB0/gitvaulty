@@ -194,6 +194,10 @@ run_git_commit 3 "chore: grant Jules dev access"
 run_git 3 push
 
 as_user jules
+section "Demo only: inspect generated placeholder values"
+printf '\033[1;33m# Do not print real secrets in a terminal.\033[0m\n'
+run_gitvaulty 6 cat .env --force
+
 section "Jules inherits every dev secret, but no SRE secrets"
 run_gitvaulty 4 materialize
 run_gitvaulty 4 status
