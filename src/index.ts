@@ -14,7 +14,20 @@ export {
   type EditTempCleanupOptions,
   type EditTempCleanupResult,
 } from "./edit-temp.js";
-export { createIdentity, currentRecipient, identityFile, readIdentity, readStoredIdentity, restoreIdentity, type StoredIdentity } from "./key.js";
+export {
+  createIdentity,
+  currentIdentity,
+  currentRecipient,
+  deriveIdentity,
+  identityFile,
+  parseSigningKey,
+  readIdentity,
+  readStoredIdentity,
+  restoreIdentity,
+  signMessage,
+  verifyMessage,
+  type StoredIdentity,
+} from "./key.js";
 export {
   normalizeGitVaultyUser,
   normalizeGitVaultyGroup,

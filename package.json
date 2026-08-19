@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "@inquirer/prompts": "8.5.2",
+    "@scure/base": "2.3.0",
     "age-encryption": "0.3.0",
     "commander": "15.0.0",
     "cross-spawn": "7.0.6",
