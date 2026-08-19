@@ -8,6 +8,7 @@ centralized access model for development teams and agents.
 | Capability | GitVaulty | Cottage |
 | --- | --- | --- |
 | Encryption and keys | Uses SOPS binary mode with native age identities. The committed `*.gitvaulty` file is opaque. | Uses age ciphertext directly and supports age and SSH keys. It stores a redacted metadata preview beside each encrypted file. |
+| Key management | Creates and manages one global native age identity by default, so each person backs up and manages a single key across all their GitVaulty repositories. A configured identity can isolate CI or sensitive repositories; compromise of the global key affects every repository that still authorizes it. | `ctg init` creates a repository-local `.cottage/identity`, making per-repository isolation the default but requiring a separate backup for every generated identity. Cottage can instead reuse `~/.config/cottage/identity` or supported SSH keys across repositories. |
 | Team access | Stores named users, groups, and per-file policies in one repository registry. Adding or removing a group member automatically re-encrypts every affected file. | Stores recipient files in a directory tree and applies per-secret `allow` and `deny` rules with glob support. After recipient changes, the documented workflow runs `ctg sync` to re-encrypt secrets. |
 | Plaintext safety | Import detects tracked plaintext and can remove it from Git's index while preserving it locally. Materialization rejects tracked, symlinked, mismatched, or unsafe destinations. `clean` removes only unchanged files. | Manages `.gitignore` and `.gitattributes`, offers verification and Git-hook integrations, and can remove plaintext with `--clean`. |
 | Streaming and pipes | `cat` streams the exact bytes of one authorized logical file without materializing it. It keeps diagnostics on stderr and refuses interactive-terminal output unless `--force` is explicit. | Cottage has no direct stdout-decryption command. `ctg run` can invoke a tool such as `cat`, but it first decrypts the selected secret to a temporary repository file and deletes it after the child exits. |
@@ -23,16 +24,17 @@ coding-agent integrations, SSH-key reuse, or synchronization with secret provide
 
 Choose GitVaulty when you want a smaller Git-centered model focused on team access: named users and
 reusable groups, centralized per-file policies, automatic re-encryption when group membership
-changes, completely opaque ciphertext, guarded stdout streaming, conservative protection of locally
-modified plaintext, and VS Code editing that does not create a plaintext repository file.
+changes, one managed identity to back up across repositories, completely opaque ciphertext, guarded
+stdout streaming, conservative protection of locally modified plaintext, and VS Code editing that
+does not create a plaintext repository file.
 
 ## Sources
 
 Cottage's official README and CLI source document its [encryption, access rules, temporary and
-environment workflows, previews, hooks, agent integrations, upstream providers, and command
+environment workflows, identity lookup, previews, hooks, agent integrations, upstream providers, and command
 surface](https://github.com/sayanarijit/cottage). Its [VS Code extension repository](https://github.com/sayanarijit/vscode-plugin-cottage)
 and [Marketplace listing](https://marketplace.visualstudio.com/items?itemName=sayanarijit.vscode-plugin-cottage)
 document its editor workflow and generated agent-safety hooks.
 GitVaulty's Marketplace listing documents its
 [VS Code extension](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty). This
-comparison was last verified on 2026-08-18.
+comparison was last verified on 2026-08-19.
