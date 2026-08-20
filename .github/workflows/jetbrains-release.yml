@@ -198,12 +198,19 @@ jobs:
         shell: bash
         run: |
           version="${RELEASE_TAG#v}"
-          awk -v heading="## $version" '
-            $0 == heading { found = 1; next }
-            found && /^## / { exit }
-            found { print }
-            END { if (!found) exit 1 }
-          ' CHANGELOG.md > release-notes.md
+          extract_release_notes() {
+            awk -v heading="## $version" '
+              $0 == heading { found = 1; next }
+              found && /^## / { exit }
+              found { print }
+              END { if (!found) exit 1 }
+            ' "$1" > release-notes.md
+          }
+          if ! extract_release_notes CHANGELOG.md; then
+            git fetch --no-tags --depth=1 origin main
+            git show FETCH_HEAD:CHANGELOG.md > current-changelog.md
+            extract_release_notes current-changelog.md
+          fi
           grep -q '[^[:space:]]' release-notes.md
       - name: Publish release assets
         shell: bash

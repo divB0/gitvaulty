@@ -41,7 +41,10 @@ describe("JetBrains release workflow", () => {
     const marketplace = workflow.jobs.marketplace;
 
     expect(githubRelease?.name).toBe("Publish GitHub Release");
-    expect(stepScript(githubRelease ?? {}, "Prepare release notes")).toContain("CHANGELOG.md");
+    const notesScript = stepScript(githubRelease ?? {}, "Prepare release notes");
+    expect(notesScript).toContain("CHANGELOG.md");
+    expect(notesScript).toContain("git fetch --no-tags --depth=1 origin main");
+    expect(notesScript).toContain("git show FETCH_HEAD:CHANGELOG.md");
     const releaseScript = stepScript(githubRelease ?? {}, "Publish release assets");
     const createIndex = releaseScript.indexOf("gh release create");
     expect(createIndex).toBeGreaterThanOrEqual(0);
