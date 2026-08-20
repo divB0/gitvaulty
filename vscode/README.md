@@ -2,6 +2,9 @@
 
 Edit complete GitVaulty-encrypted files in VS Code's native text editor.
 
+[View GitVaulty on GitHub](https://github.com/divB0/gitvaulty) for source code, documentation, and
+issue tracking.
+
 ## Install
 
 [Install GitVaulty from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty),

@@ -6,6 +6,8 @@
   <description><![CDATA[
     <p>Edit authorized GitVaulty encrypted files in the native JetBrains text editor without
     creating plaintext repository files.</p>
+    <p><a href="https://github.com/divB0/gitvaulty">View GitVaulty on GitHub</a> for source code,
+    documentation, and issue tracking.</p>
   ]]></description>
 
   <change-notes><![CDATA[
