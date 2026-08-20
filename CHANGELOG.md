@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.0.2
+
+- Publish the VS Code extension as stable by removing its Marketplace Preview designation.
+
 ## 3.0.1
 
 - Add stable GitVaulty support for compatible JetBrains IDEs through JetBrains Marketplace.

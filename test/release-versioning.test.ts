@@ -141,10 +141,12 @@ describe("unified release versioning", () => {
     const publish = release.jobs.publish;
     const extensionPackage = JSON.parse(text("vscode/package.json")) as {
       devDependencies?: Record<string, string>;
+      preview?: boolean;
     };
 
     expect(publish?.environment).toBe("vscode-marketplace");
     expect(publish?.permissions).toEqual({ contents: "read", "id-token": "write" });
+    expect(extensionPackage.preview).toBeUndefined();
     expect(extensionPackage.devDependencies?.["@vscode/vsce"]).toBe("3.9.2");
     expect(source).not.toContain("VSCE_PAT");
     expect(source).not.toContain("--pat");

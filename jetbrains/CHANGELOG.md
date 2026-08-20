@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.0.2
+
+- Keep the plugin aligned with the unified GitVaulty release; there are no JetBrains-visible behavior
+  changes in this patch.
+
 ## 3.0.0
 
 - Align the plugin and native runtime versions with the GitVaulty core version they bundle.

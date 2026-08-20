@@ -11,6 +11,10 @@
   ]]></description>
 
   <change-notes><![CDATA[
+    <h3>3.0.2</h3>
+    <ul>
+      <li>Keep the plugin aligned with the unified GitVaulty release; there are no JetBrains-visible behavior changes in this patch.</li>
+    </ul>
     <h3>3.0.0</h3>
     <ul>
       <li>Align the plugin and native runtime versions with the GitVaulty core version they bundle.</li>

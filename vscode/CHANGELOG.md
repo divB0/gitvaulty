@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.0.2 — Stable Marketplace listing
+
+- Remove the Preview designation from the Visual Studio Marketplace listing.
+
 ## 3.0.0 — Unified versioning
 
 - Align the extension version with the GitVaulty core version it bundles.
