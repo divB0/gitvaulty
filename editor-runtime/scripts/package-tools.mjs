@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
-export const RUNTIME_VERSION = "3.0.1";
+export const RUNTIME_VERSION = "3.0.2";
 export const PROTOCOL_VERSION = 1;
 export const SUPPORTED_TARGETS = ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"];
 
