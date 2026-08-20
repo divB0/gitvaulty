@@ -2,7 +2,7 @@
   "name": "gitvaulty",
   "displayName": "GitVaulty",
   "description": "Edit GitVaulty encrypted files in VS Code's native text editor.",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "publisher": "divb0",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
