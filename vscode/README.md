@@ -95,8 +95,9 @@ platform's SOPS executable and its license into the VSIX.
 
 The extension uses the permanent Marketplace identity `divb0.gitvaulty`. Before a release:
 
-1. Create a Marketplace Personal Access Token for publisher `divB0` and save it as the `VSCE_PAT`
-   GitHub Actions repository secret.
+1. Keep Azure managed identity `gitvaulty-vscode-publisher` registered as a Contributor to
+   Marketplace publisher `divB0`, with its federated credential restricted to GitHub environment
+   `vscode-marketplace` in repository `divB0/gitvaulty`.
 2. Update `vscode/CHANGELOG.md` with extension-visible changes.
 3. Follow the unified release process in [`HOW_TO_VERSION.md`](../HOW_TO_VERSION.md).
 
@@ -111,8 +112,15 @@ git push origin main --follow-tags
 ```
 
 The workflow verifies that the tag, root package, and extension versions match before publishing all
-five packages with the `VSCE_PAT` secret. A manual run must name an existing `vX.Y.Z` tag and is only
-for retrying that exact release. Marketplace version numbers cannot be reused.
+five packages with `vsce --azure-credential`. GitHub OIDC signs into the managed identity using the
+`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID` repository variables; these are
+public identifiers, not credentials. There is no Personal Access Token fallback or long-lived
+publishing secret.
+
+The manually dispatched **VS Code publisher identity** workflow resolves the managed identity's
+non-secret Visual Studio profile ID for initial Marketplace Contributor registration or recovery. A
+manual release run must name an existing `vX.Y.Z` tag and is only for retrying that exact release.
+Marketplace version numbers cannot be reused.
 
 For a local one-off inspection from the extension directory:
 

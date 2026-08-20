@@ -83,6 +83,12 @@ jobs:
     name: Publish to Visual Studio Marketplace
     needs: package
     runs-on: ubuntu-24.04
+    environment: vscode-marketplace
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_CORE_OUTPUT: none
     steps:
       - uses: actions/checkout@v6
         with:
@@ -99,16 +105,19 @@ jobs:
       - name: Install publisher tooling
         run: npm ci
         working-directory: vscode
+      - name: Sign in with the Marketplace publishing identity
+        uses: Azure/login@f5d393ae46f8fde4be8b75f32e3fc50e654ad0ca # v3.0.1
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       - name: Publish platform packages
         shell: bash
         working-directory: vscode
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
-          test -n "$VSCE_PAT"
           shopt -s nullglob
           packages=(vsix/*.vsix)
           test "${#packages[@]}" -eq 5
           for package in "${packages[@]}"; do
-            npx vsce publish --packagePath "$package"
+            npx vsce publish --azure-credential --packagePath "$package"
           done

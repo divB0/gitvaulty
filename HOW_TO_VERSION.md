@@ -88,6 +88,12 @@ integrations to their stable Marketplace channels, and triggers npm publication.
 the same release dispatches the exact version to the Homebrew tap with a short-lived, repository-scoped
 GitHub App token and waits for the tap's validation workflow to succeed.
 
+VS Code Marketplace publication uses Microsoft Entra workload identity federation. GitHub OIDC
+signs into the `gitvaulty-vscode-publisher` managed identity only from the `vscode-marketplace`
+environment, then stable `vsce --azure-credential` publishes as a Contributor to Marketplace
+publisher `divB0`. GitHub stores only the public client, tenant, and subscription identifiers as
+repository variables. The workflow does not use or fall back to a `VSCE_PAT` repository secret.
+
 Manual workflow dispatch is recovery-only. Supply the existing `vX.Y.Z` tag so every retry checks
 out and republishes the exact tagged source rather than the current `main` branch.
 
