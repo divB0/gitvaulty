@@ -14,11 +14,17 @@ interface WorkflowStep {
 
 interface WorkflowJob {
   if?: string;
+  needs?: string;
   steps?: WorkflowStep[];
+  uses?: string;
+  with?: Record<string, unknown>;
 }
 
 interface Workflow {
-  on?: { push?: { tags?: string[] }; release?: { types?: string[] } };
+  on?: {
+    push?: { tags?: string[] };
+    workflow_call?: { inputs?: { tag?: { required?: boolean; type?: string } } };
+  };
   env?: Record<string, string>;
   jobs: Record<string, WorkflowJob>;
 }
@@ -65,12 +71,12 @@ describe("unified release versioning", () => {
 
     expect(jetbrains.on?.push?.tags).toEqual(["v*"]);
     expect(vscode.on?.push?.tags).toEqual(["v*"]);
-    expect(npm.on?.release?.types).toEqual(["published"]);
+    expect(npm.on?.workflow_call?.inputs?.tag).toMatchObject({ required: true, type: "string" });
 
     for (const releaseWorkflow of [jetbrains, vscode]) {
       expect(releaseWorkflow.env?.RELEASE_TAG).toContain("github.ref_name");
     }
-    expect(npm.env?.RELEASE_TAG).toContain("github.event.release.tag_name");
+    expect(npm.env?.RELEASE_TAG).toBe("${{ inputs.tag }}");
     for (const releaseWorkflow of [jetbrains, vscode, npm]) {
       const checkouts = checkoutSteps(releaseWorkflow);
       expect(checkouts.length).toBeGreaterThan(0);
@@ -85,6 +91,10 @@ describe("unified release versioning", () => {
     expect(sources).not.toContain("jetbrains-v");
     expect(sources).not.toContain("vscode-v");
     expect(sources).toContain("require('./package.json').version");
-    expect(npm.jobs.publish?.if).toContain("github.event.release.tag_name");
+    expect(jetbrains.jobs.npm).toMatchObject({
+      needs: "github-release",
+      uses: "./.github/workflows/publish.yml",
+      with: { tag: "${{ github.event_name == 'push' && github.ref_name || inputs.tag }}" },
+    });
   });
 });
