@@ -9,6 +9,12 @@
   ]]></description>
 
   <change-notes><![CDATA[
+    <h3>3.0.0</h3>
+    <ul>
+      <li>Align the plugin and native runtime versions with the GitVaulty core version they bundle.</li>
+      <li>Move Stable-channel publication to the shared GitVaulty <code>vX.Y.Z</code> release tag.</li>
+      <li>Include GitVaulty 3.0.0 identity and signed-policy behavior in the native editor integration.</li>
+    </ul>
     <h3>0.1.1</h3>
     <ul>
       <li>Refresh the signed native runtime and verify automated Marketplace updates.</li>

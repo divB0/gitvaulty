@@ -119,7 +119,7 @@ export async function handleRequest(request: EditorRequest, core: EditorRuntimeC
   try {
     switch (request.method) {
       case "ping":
-        return { id: request.id, ok: true, result: { protocolVersion: 1, runtimeVersion: "0.1.1" } };
+        return { id: request.id, ok: true, result: { protocolVersion: 1, runtimeVersion: "3.0.0" } };
       case "open": {
         const opened = await core.open(request.params.sourcePath);
         decodeText(opened.plaintext);

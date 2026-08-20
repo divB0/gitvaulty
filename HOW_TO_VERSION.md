@@ -56,9 +56,45 @@ When classifying a change, use this order:
 
 When uncertain whether users may rely on a behavior, treat it as user space and ask before changing it.
 
+## Prepare One Version for Every Distribution
+
+The root `package.json` version is authoritative for the npm package, VS Code extension, native
+editor runtime, and JetBrains plugin. Every release rebuilds all three public distributions because
+both editor integrations bundle GitVaulty's core implementation.
+
+Before bumping the version:
+
+1. Add a concise `## X.Y.Z` user-facing summary to `CHANGELOG.md`.
+2. Update `vscode/CHANGELOG.md` for extension-visible changes.
+3. Update `jetbrains/CHANGELOG.md` and the `<change-notes>` in
+   `jetbrains/src/main/resources/META-INF/plugin.xml` for plugin-visible changes.
+4. For a minor or major release, review the demo contract as described in the repository release
+   instructions and update the generated demo when required.
+5. Commit those release notes and all implementation changes.
+
+Then create the version commit and annotated `vX.Y.Z` tag with npm. The npm `version` lifecycle
+synchronizes and stages the editor metadata automatically:
+
+```sh
+npm version patch
+npm run versions:check
+git push origin main --follow-tags
+```
+
+Use `minor` or `major` instead of `patch` according to the classification above. Do not create
+`vscode-v*` or `jetbrains-v*` tags. The single `vX.Y.Z` tag builds the VS Code packages, all five
+JetBrains runtimes and the signed plugin, publishes the shared GitHub Release, uploads both editor
+integrations to their stable Marketplace channels, and triggers npm publication.
+
+Manual workflow dispatch is recovery-only. Supply the existing `vX.Y.Z` tag so every retry checks
+out and republishes the exact tagged source rather than the current `main` branch.
+
 ## Verify Distribution Channels
 
-After publishing a GitVaulty release, verify that the matching package is available from npm. The
+After publishing a GitVaulty release, verify that the matching version is available from npm, the
+[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty), and the
+[JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33659-gitvaulty/versions/stable?noRedirect=true).
+The
 public [`divB0/homebrew-tap`](https://github.com/divB0/homebrew-tap) repository checks npm on a
 schedule and updates its pinned tarball URL and SHA-256 automatically. Confirm that the tap formula
 reaches the same version and that its validation workflow passes before announcing Homebrew

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { SecretFileConflictError } from "../../src/errors.js";
+import { RUNTIME_VERSION } from "../scripts/package-tools.mjs";
 import { handleRequest, type EditorRuntimeCore } from "../src/bridge.js";
 
 const sourcePath = "/repo/.env.gitvaulty";
@@ -25,7 +26,7 @@ describe("editor runtime bridge", () => {
     expect(response).toEqual({
       id: "ping-1",
       ok: true,
-      result: { protocolVersion: 1, runtimeVersion: "0.1.1" },
+      result: { protocolVersion: 1, runtimeVersion: RUNTIME_VERSION },
     });
   });
 

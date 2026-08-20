@@ -31,7 +31,11 @@ export async function runEditorTest(): Promise<void> {
     await executeChecked("git", ["init", "-q"], { cwd: root });
     const repo = await findRepository(root);
     const owner = await createIdentity();
-    await initialize(repo, { username: "owner", recipient: owner.recipient });
+    await initialize(repo, {
+      username: "owner",
+      recipient: owner.recipient,
+      signingKey: owner.signingKey,
+    });
     await writeFile(path.join(root, ".env"), "TOKEN=old\n");
     await importSecretFile(repo, ".env");
     await unlink(path.join(root, ".env"));

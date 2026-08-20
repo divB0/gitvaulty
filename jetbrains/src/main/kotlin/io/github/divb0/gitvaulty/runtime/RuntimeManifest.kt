@@ -34,7 +34,7 @@ data class RuntimeManifest(
       val uri = try { URI(asset.url) } catch (error: Exception) {
         throw GitVaultyRuntimeException("Invalid GitVaulty runtime URL.", error)
       }
-      val immutablePath = Regex("^/divB0/gitvaulty/releases/download/jetbrains-v[^/]+/${Regex.escape(asset.filename)}$")
+      val immutablePath = Regex("^/divB0/gitvaulty/releases/download/v${Regex.escape(runtimeVersion)}/${Regex.escape(asset.filename)}$")
       if (uri.scheme != "https" || uri.host != "github.com" || uri.query != null || uri.fragment != null || !immutablePath.matches(uri.path)) {
         throw GitVaultyRuntimeException("GitVaulty runtime URL must identify an exact GitHub Release asset.")
       }

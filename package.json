@@ -41,12 +41,15 @@
   ],
   "scripts": {
     "build": "tsup && tsc -p tsconfig.build.json",
-    "check": "npm run typecheck && npm test && npm run build && node scripts/package-smoke.mjs",
+    "check": "npm run versions:check && npm run typecheck && npm test && npm run build && node scripts/package-smoke.mjs",
     "demo:generate": "bash scripts/generate-demo.sh",
     "prepublishOnly": "npm run check",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "version": "npm run versions:sync && git add vscode/package.json vscode/package-lock.json editor-runtime/package.json editor-runtime/package-lock.json editor-runtime/scripts/package-tools.mjs editor-runtime/src/bridge.ts jetbrains/build.gradle.kts jetbrains/src/main/resources/gitvaulty-runtime-manifest.json",
+    "versions:check": "node scripts/sync-editor-versions.mjs --check",
+    "versions:sync": "node scripts/sync-editor-versions.mjs"
   },
   "dependencies": {
     "@inquirer/prompts": "8.5.2",

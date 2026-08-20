@@ -94,20 +94,22 @@ The extension uses the permanent Marketplace identity `divb0.gitvaulty`. Before 
 
 1. Create a Marketplace Personal Access Token for publisher `divB0` and save it as the `VSCE_PAT`
    GitHub Actions repository secret.
-2. Confirm that `vscode/package.json` and `vscode/CHANGELOG.md` contain the intended version.
+2. Update `vscode/CHANGELOG.md` with extension-visible changes.
+3. Follow the unified release process in [`HOW_TO_VERSION.md`](../HOW_TO_VERSION.md).
 
 The **VS Code extension release** GitHub workflow builds and tests native packages for macOS arm64
-and x64, Linux arm64 and x64, and Windows x64. A manual run publishes a prerelease by default. A tag
-matching the extension version publishes a normal release:
+and x64, Linux arm64 and x64, and Windows x64. The root `package.json` version is authoritative;
+`npm version` synchronizes `vscode/package.json`, and the shared `vX.Y.Z` tag publishes the stable
+extension together with the matching npm and JetBrains versions:
 
 ```sh
-git tag vscode-v0.1.0
-git push origin vscode-v0.1.0
+npm version patch
+git push origin main --follow-tags
 ```
 
-The workflow verifies that the tag version exactly matches `vscode/package.json` before publishing
-all five packages with the `VSCE_PAT` secret. Marketplace version numbers cannot be reused: after
-publishing a prerelease, increment `vscode/package.json` before publishing a normal release.
+The workflow verifies that the tag, root package, and extension versions match before publishing all
+five packages with the `VSCE_PAT` secret. A manual run must name an existing `vX.Y.Z` tag and is only
+for retrying that exact release. Marketplace version numbers cannot be reused.
 
 For a local one-off inspection from the extension directory:
 

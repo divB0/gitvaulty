@@ -24,7 +24,7 @@ class RuntimeManifestTest {
         "assets": [{
           "target": "darwin-arm64",
           "filename": "gitvaulty-editor-runtime-v0.1.0-darwin-arm64.zip",
-          "url": "https://github.com/divB0/gitvaulty/releases/download/jetbrains-v0.1.0/gitvaulty-editor-runtime-v0.1.0-darwin-arm64.zip",
+          "url": "https://github.com/divB0/gitvaulty/releases/download/v0.1.0/gitvaulty-editor-runtime-v0.1.0-darwin-arm64.zip",
           "size": 42,
           "sha256": "${"a".repeat(64)}"
         }]

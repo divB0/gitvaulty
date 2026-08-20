@@ -1,13 +1,13 @@
-name: JetBrains plugin release
+name: GitVaulty release
 
 on:
   push:
     tags:
-      - "jetbrains-v*"
+      - "v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag, for example jetbrains-v0.1.0
+        description: Existing release tag, for example v3.0.1
         required: true
         type: string
       publish_marketplace:
@@ -42,6 +42,8 @@ jobs:
             runner: windows-2025
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -68,6 +70,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -85,10 +89,12 @@ jobs:
       - name: Verify release versions
         shell: bash
         run: |
-          [[ "$RELEASE_TAG" =~ ^jetbrains-v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          expected="${RELEASE_TAG#jetbrains-v}"
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          expected="${RELEASE_TAG#v}"
+          core_version="$(node -p "require('./package.json').version")"
           plugin_version="$(sed -n 's/^version = "\([^"]*\)"/\1/p' jetbrains/build.gradle.kts)"
           runtime_version="$(node --input-type=module -e "import { RUNTIME_VERSION } from './editor-runtime/scripts/package-tools.mjs'; process.stdout.write(RUNTIME_VERSION)")"
+          test "$core_version" = "$expected"
           test "$plugin_version" = "$expected"
           test "$runtime_version" = "$expected"
           test "$(find release-assets -maxdepth 1 -name 'gitvaulty-editor-runtime-*.zip' | wc -l | tr -d ' ')" = 5
@@ -123,6 +129,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -175,6 +183,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: actions/download-artifact@v6
         with:
           pattern: gitvaulty-editor-runtime-*
@@ -187,13 +197,13 @@ jobs:
       - name: Prepare release notes
         shell: bash
         run: |
-          version="${RELEASE_TAG#jetbrains-v}"
+          version="${RELEASE_TAG#v}"
           awk -v heading="## $version" '
             $0 == heading { found = 1; next }
             found && /^## / { exit }
             found { print }
             END { if (!found) exit 1 }
-          ' jetbrains/CHANGELOG.md > release-notes.md
+          ' CHANGELOG.md > release-notes.md
           grep -q '[^[:space:]]' release-notes.md
       - name: Publish release assets
         shell: bash
@@ -206,15 +216,15 @@ jobs:
             gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber --repo "$GITHUB_REPOSITORY"
             gh release edit "$RELEASE_TAG" \
               --draft=false \
-              --latest=false \
+              --latest \
               --notes-file release-notes.md \
               --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$RELEASE_TAG" "${assets[@]}" \
               --verify-tag \
-              --latest=false \
+              --latest \
               --repo "$GITHUB_REPOSITORY" \
-              --title "GitVaulty for JetBrains ${RELEASE_TAG#jetbrains-v}" \
+              --title "GitVaulty ${RELEASE_TAG#v}" \
               --notes-file release-notes.md
           fi
 
@@ -227,6 +237,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: actions/setup-java@v5
         with:
           distribution: temurin

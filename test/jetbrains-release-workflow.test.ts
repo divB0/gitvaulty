@@ -41,9 +41,7 @@ describe("JetBrains release workflow", () => {
     const marketplace = workflow.jobs.marketplace;
 
     expect(githubRelease?.name).toBe("Publish GitHub Release");
-    expect(stepScript(githubRelease ?? {}, "Prepare release notes")).toContain(
-      "jetbrains/CHANGELOG.md",
-    );
+    expect(stepScript(githubRelease ?? {}, "Prepare release notes")).toContain("CHANGELOG.md");
     const releaseScript = stepScript(githubRelease ?? {}, "Publish release assets");
     const createIndex = releaseScript.indexOf("gh release create");
     expect(createIndex).toBeGreaterThanOrEqual(0);
@@ -51,7 +49,8 @@ describe("JetBrains release workflow", () => {
     expect(createInvocation).not.toMatch(/\n\s+--draft(?:\s|\\)/);
     expect(releaseScript).toContain('gh release edit "$RELEASE_TAG"');
     expect(releaseScript.match(/--draft=false/g)).toHaveLength(1);
-    expect(releaseScript.match(/--latest=false/g)).toHaveLength(2);
+    expect(releaseScript).not.toContain("--latest=false");
+    expect(releaseScript.match(/--latest(?:\s|\\)/g)).toHaveLength(2);
     expect(releaseScript.match(/--notes-file release-notes\.md/g)).toHaveLength(2);
 
     expect(marketplace?.if).toContain("github.event_name == 'push'");

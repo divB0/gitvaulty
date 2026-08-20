@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
-export const RUNTIME_VERSION = "0.1.1";
+export const RUNTIME_VERSION = "3.0.0";
 export const PROTOCOL_VERSION = 1;
 export const SUPPORTED_TARGETS = ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"];
 
@@ -25,7 +25,7 @@ export function runtimeFilename(target) {
  * @param {string} repositoryUrl
  */
 export async function createRuntimeManifest(assetsDirectory, tag, repositoryUrl) {
-  if (!/^jetbrains-v\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?$/.test(tag)) throw new Error("Invalid JetBrains release tag.");
+  if (!/^v\d+\.\d+\.\d+$/.test(tag)) throw new Error("Invalid GitVaulty release tag.");
   const base = repositoryUrl.replace(/\/$/, "");
   const assets = [];
   for (const target of SUPPORTED_TARGETS) {

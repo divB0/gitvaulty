@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.0.0 — Unified versioning
+
+- Align the extension version with the GitVaulty core version it bundles.
+- Move stable extension publication to the shared GitVaulty `vX.Y.Z` release tag.
+- Include GitVaulty 3.0.0 identity and signed-policy behavior in the native editor integration.
+
 ## 0.1.0 — Preview
 
 - Open `*.gitvaulty` files automatically as native decrypted virtual documents.

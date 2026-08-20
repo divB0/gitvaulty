@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "io.github.divb0.gitvaulty"
-version = "0.1.1"
+version = "3.0.0"
 
 repositories {
   mavenCentral()

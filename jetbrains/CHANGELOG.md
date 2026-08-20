@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.0.0
+
+- Align the plugin and native runtime versions with the GitVaulty core version they bundle.
+- Move Stable-channel publication to the shared GitVaulty `vX.Y.Z` release tag.
+- Include GitVaulty 3.0.0 identity and signed-policy behavior in the native editor integration.
+
 ## 0.1.1
 
 - Refresh the signed native runtime and verify automated Marketplace updates.
