@@ -17,7 +17,7 @@ JetBrains IDEs based on a compatible platform build.
 
 ## Install
 
-Install [GitVaulty from JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33659-gitvaulty),
+Install [GitVaulty from JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33659-gitvaulty/versions/stable?noRedirect=true),
 or open **Settings | Plugins | Marketplace**, search for **GitVaulty**, and select **Install**.
 
 For an offline release ZIP, open **Settings | Plugins**, select the gear menu, choose **Install Plugin
@@ -101,7 +101,7 @@ On Windows the executable name ends in `.exe`. `./jetbrains/gradlew -p jetbrains
 sandbox IDE for manual testing.
 
 Release automation builds the runtime natively for all five targets, produces an exact manifest,
-embeds it in the plugin, author-signs and verifies the plugin ZIP, and creates a GitHub Release draft
+embeds it in the plugin, author-signs and verifies the plugin ZIP, and publishes a GitHub Release
 with a real changelog summary. The signing certificate, encrypted private key, password, and
 Marketplace token are committed only as `sre`-protected GitVaulty ciphertext under
 `.github/jetbrains-release-secrets/`. GitHub Actions stores one bootstrap secret,
@@ -110,7 +110,29 @@ release credentials required by each signing or publishing command and removes t
 plaintext files when the command exits.
 
 The first plugin version was uploaded manually to establish its vendor, license, source repository,
-tags, release channel, and listing details. For later versions, create and push the matching
-`jetbrains-v<version>` tag, publish the resulting GitHub Release draft so its runtime assets are
-public, then run the **JetBrains plugin release** workflow manually with
-`publish_marketplace=true`.
+tags, release channel, and listing details. Every later release must use a version that is not
+already present on Marketplace. Update the version and release notes together in:
+
+- `jetbrains/build.gradle.kts`
+- `editor-runtime/package.json` and `editor-runtime/package-lock.json`
+- `editor-runtime/scripts/package-tools.mjs`
+- `editor-runtime/src/bridge.ts`
+- `jetbrains/src/main/resources/gitvaulty-runtime-manifest.json`
+- `jetbrains/src/main/resources/META-INF/plugin.xml` and `jetbrains/CHANGELOG.md`
+- runtime tests that assert the current version
+
+Commit and push those changes, then create and push the matching tag:
+
+```sh
+jetbrains_version=0.1.2
+git tag -a "jetbrains-v${jetbrains_version}" -m "GitVaulty for JetBrains ${jetbrains_version}"
+git push origin "jetbrains-v${jetbrains_version}"
+```
+
+The tag starts the **JetBrains plugin release** workflow. It builds and verifies all five runtimes,
+signs the plugin, publishes the GitHub Release and its runtime assets, then uploads the same signed
+version to the Stable channel on JetBrains Marketplace. No second workflow run is required.
+
+If Marketplace publication fails before the version is accepted, retry the existing tag from
+**Actions | JetBrains plugin release | Run workflow** with `publish_marketplace=true`. Do not retry
+an update that Marketplace has already accepted; it rejects duplicate versions.

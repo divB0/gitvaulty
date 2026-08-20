@@ -168,12 +168,13 @@ jobs:
           if-no-files-found: error
 
   github-release:
-    name: Create GitHub Release draft
+    name: Publish GitHub Release
     needs: signed-plugin
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v6
       - uses: actions/download-artifact@v6
         with:
           pattern: gitvaulty-editor-runtime-*
@@ -183,7 +184,18 @@ jobs:
         with:
           name: gitvaulty-jetbrains-signed
           path: release-assets
-      - name: Create draft with release assets
+      - name: Prepare release notes
+        shell: bash
+        run: |
+          version="${RELEASE_TAG#jetbrains-v}"
+          awk -v heading="## $version" '
+            $0 == heading { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+            END { if (!found) exit 1 }
+          ' jetbrains/CHANGELOG.md > release-notes.md
+          grep -q '[^[:space:]]' release-notes.md
+      - name: Publish release assets
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -192,19 +204,26 @@ jobs:
           test "${#assets[@]}" = 7
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$RELEASE_TAG" \
+              --draft=false \
+              --latest=false \
+              --notes-file release-notes.md \
+              --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$RELEASE_TAG" "${assets[@]}" \
-              --draft \
               --verify-tag \
+              --latest=false \
               --repo "$GITHUB_REPOSITORY" \
               --title "GitVaulty for JetBrains ${RELEASE_TAG#jetbrains-v}" \
-              --notes "Adds native editing for authorized GitVaulty files across compatible JetBrains IDEs. Saves reuse GitVaulty's verified encryption and atomic replacement, stale ciphertext is protected by fingerprints, and the plugin downloads only digest-verified native runtimes for macOS, Linux, and Windows."
+              --notes-file release-notes.md
           fi
 
   marketplace:
     name: Publish to JetBrains Marketplace
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_marketplace
-    needs: signed-plugin
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish_marketplace)
+    needs: github-release
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6

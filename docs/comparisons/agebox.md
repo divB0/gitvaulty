@@ -12,7 +12,7 @@ repository-managed access control and guarded development workflows for teams an
 | Git safety | Adds plaintext paths to the clone-local Git exclude file. Import detects tracked plaintext, warns about Git history, and can stop tracking the file while preserving the local copy. | Deliberately does not run Git commands or manage VCS state. `validate` can detect tracked files that are not encrypted, while ignore and index management remain the user's responsibility. |
 | Streaming and pipes | `cat` streams the exact bytes of one authorized logical file without materializing it. It keeps diagnostics on stderr and refuses interactive-terminal output unless `--force` is explicit. | `cat` can decrypt one or more arbitrary encrypted files to stdout. Its documentation uses `--no-log` for clean output and does not describe an interactive-terminal guard. |
 | Local and agent workflows | Provides guarded `edit`, `materialize`, `status`, `clean`, and `run` commands. `run` exposes only selected or identity-authorized files and removes only unchanged files it created. | Provides recursive and filtered `encrypt` and `decrypt`, plus `cat`, `validate`, `reencrypt`, and `untrack`. It does not document a temporary command or agent workflow. |
-| IDE plugins | **Supported:** VS Code, through the official [GitVaulty extension](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty), and JetBrains IDEs through the official [GitVaulty plugin](https://plugins.jetbrains.com/plugin/33659-gitvaulty). Both edit decrypted documents without plaintext repository siblings. | **Supported:** none documented. Files are decrypted with the CLI before editing. |
+| IDE plugins | **Supported:** VS Code, through the official [GitVaulty extension](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty), and JetBrains IDEs through the official [GitVaulty plugin](https://plugins.jetbrains.com/plugin/33659-gitvaulty/versions/stable?noRedirect=true). Both edit decrypted documents without plaintext repository siblings. | **Supported:** none documented. Files are decrypted with the CLI before editing. |
 | Distribution | Installs through npm and requires Node.js 20 or newer. | Ships as a single Go binary and as a container image. |
 
 ## Which one should I use?
@@ -31,5 +31,5 @@ and native VS Code and JetBrains integrations provide the access lifecycle aroun
 Agebox's official README documents its [commands, stdout `cat` workflow, registry, recipient loading,
 supported key types, private-key discovery, and no-VCS-side-effects design](https://github.com/slok/agebox). GitVaulty's Marketplace listings
 document its [VS Code extension](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty)
-and [JetBrains plugin](https://plugins.jetbrains.com/plugin/33659-gitvaulty).
+and [JetBrains plugin](https://plugins.jetbrains.com/plugin/33659-gitvaulty/versions/stable?noRedirect=true).
 This comparison was last verified on 2026-08-19.

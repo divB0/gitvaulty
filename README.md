@@ -611,7 +611,7 @@ and troubleshooting.
 
 ### JetBrains IDEs
 
-[Install GitVaulty from JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33659-gitvaulty),
+[Install GitVaulty from JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33659-gitvaulty/versions/stable?noRedirect=true),
 or open **Settings | Plugins | Marketplace** in a compatible IDE, search for **GitVaulty**, and
 select **Install**.
 
