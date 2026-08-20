@@ -7,14 +7,17 @@ import { describe, expect, it } from "vitest";
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 interface WorkflowStep {
+  id?: string;
   uses?: string;
   with?: Record<string, unknown>;
+  env?: Record<string, string>;
   run?: string;
 }
 
 interface WorkflowJob {
   if?: string;
   needs?: string;
+  permissions?: Record<string, string>;
   steps?: WorkflowStep[];
   uses?: string;
   with?: Record<string, unknown>;
@@ -96,5 +99,38 @@ describe("unified release versioning", () => {
       uses: "./.github/workflows/publish.yml",
       with: { tag: "${{ github.event_name == 'push' && github.ref_name || inputs.tag }}" },
     });
+  });
+
+  it("publishes Homebrew immediately after npm with a repository-scoped App token", () => {
+    const release = workflow(".github/workflows/jetbrains-release.yml");
+    const homebrew = release.jobs.homebrew;
+
+    expect(homebrew).toMatchObject({
+      needs: "npm",
+      permissions: { contents: "read" },
+    });
+    if (!homebrew) throw new Error("Homebrew release job is missing.");
+
+    const token = homebrew.steps?.find((step) => step.id === "app-token");
+    expect(token).toMatchObject({
+      uses: "actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1",
+      with: {
+        "client-id": "${{ vars.HOMEBREW_APP_CLIENT_ID }}",
+        "private-key": "${{ secrets.HOMEBREW_APP_PRIVATE_KEY }}",
+        owner: "${{ github.repository_owner }}",
+        repositories: "homebrew-tap",
+        "permission-actions": "write",
+      },
+    });
+
+    const publish = homebrew.steps?.find((step) => step.run?.includes("gh workflow run update.yml"));
+    expect(publish?.env).toEqual({ GH_TOKEN: "${{ steps.app-token.outputs.token }}" });
+    expect(publish?.run).toMatch(/\[\[ "\$RELEASE_TAG" =~ \^v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+\$ \]\]/);
+    expect(publish?.run).toContain("--repo divB0/homebrew-tap");
+    expect(publish?.run).toContain('-f version="$version"');
+    expect(publish?.run).toContain('-f request_id="$request_id"');
+    expect(publish?.run).toContain("display_title == $run_title");
+    expect(publish?.run).toContain('gh run watch "$run_id"');
+    expect(publish?.run).toContain("--exit-status");
   });
 });

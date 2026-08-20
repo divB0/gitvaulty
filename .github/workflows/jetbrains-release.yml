@@ -287,3 +287,64 @@ jobs:
     uses: ./.github/workflows/publish.yml
     with:
       tag: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+
+  homebrew:
+    name: Publish to Homebrew
+    needs: npm
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Create repository-scoped GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        with:
+          client-id: ${{ vars.HOMEBREW_APP_CLIENT_ID }}
+          private-key: ${{ secrets.HOMEBREW_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: homebrew-tap
+          permission-actions: write
+      - name: Dispatch and verify exact Homebrew update
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          version="${RELEASE_TAG#v}"
+          request_id="${GITHUB_REPOSITORY_ID}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          run_title="Update GitVaulty ${version} (request ${request_id})"
+
+          gh workflow run update.yml \
+            --repo divB0/homebrew-tap \
+            --ref main \
+            -f version="$version" \
+            -f request_id="$request_id"
+
+          run_id=""
+          deadline=$((SECONDS + 60))
+          while (( SECONDS < deadline )); do
+            run_id="$(
+              gh api --method GET \
+                repos/divB0/homebrew-tap/actions/workflows/update.yml/runs \
+                -f event=workflow_dispatch \
+                -f per_page=20 |
+                jq -r --arg run_title "$run_title" \
+                  '.workflow_runs[] | select(.display_title == $run_title) | .id' |
+                head -n 1
+            )"
+            if [[ -n "$run_id" ]]; then
+              break
+            fi
+            sleep 5
+          done
+
+          if [[ -z "$run_id" ]]; then
+            echo "Timed out waiting for Homebrew run: $run_title" >&2
+            exit 1
+          fi
+
+          echo "Homebrew run: https://github.com/divB0/homebrew-tap/actions/runs/${run_id}"
+          gh run watch "$run_id" \
+            --repo divB0/homebrew-tap \
+            --exit-status \
+            --interval 10

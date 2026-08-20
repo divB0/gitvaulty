@@ -84,7 +84,9 @@ git push origin main --follow-tags
 Use `minor` or `major` instead of `patch` according to the classification above. Do not create
 `vscode-v*` or `jetbrains-v*` tags. The single `vX.Y.Z` tag builds the VS Code packages, all five
 JetBrains runtimes and the signed plugin, publishes the shared GitHub Release, uploads both editor
-integrations to their stable Marketplace channels, and triggers npm publication.
+integrations to their stable Marketplace channels, and triggers npm publication. After npm succeeds,
+the same release dispatches the exact version to the Homebrew tap with a short-lived, repository-scoped
+GitHub App token and waits for the tap's validation workflow to succeed.
 
 Manual workflow dispatch is recovery-only. Supply the existing `vX.Y.Z` tag so every retry checks
 out and republishes the exact tagged source rather than the current `main` branch.
@@ -95,7 +97,7 @@ After publishing a GitVaulty release, verify that the matching version is availa
 [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=divB0.gitvaulty), and the
 [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33659-gitvaulty/versions/stable?noRedirect=true).
 The
-public [`divB0/homebrew-tap`](https://github.com/divB0/homebrew-tap) repository checks npm on a
-schedule and updates its pinned tarball URL and SHA-256 automatically. Confirm that the tap formula
-reaches the same version and that its validation workflow passes before announcing Homebrew
-availability for the release.
+public [`divB0/homebrew-tap`](https://github.com/divB0/homebrew-tap) repository receives the exact
+published npm version from the unified release, updates its pinned tarball URL and SHA-256, validates
+the formula, and reports its result back to the release workflow. Confirm that the tap formula reaches
+the same version before announcing Homebrew availability for the release.
